@@ -16,7 +16,7 @@ class Group(BaseModel):
         )
 
     user = IntegerField()
-    name = CharField(max_length=16)
+    name = CharField(max_length=32)
 
 
 class GroupUsers(BaseModel):

@@ -40,9 +40,17 @@ def inlinequery(bot, update):
         members = ' '.join(member.alias for member in group.members)
         results.append(InlineQueryResultArticle(
             id=group.id,
-            title=group.name,
+            title=f'@{group.name}',
             input_message_content=InputTextMessageContent(
-                f'{members}\n\n{query}')))
+                f'{members}\n{query}'),
+            description=f'{members}\n{query}'))
+
+    if not results and query:
+        results.append(InlineQueryResultArticle(
+            id=uuid4(),
+            title="You don't have any existing group yet.",
+            input_message_content=InputTextMessageContent(query)
+        ))
 
     update.inline_query.answer(results)
 
@@ -61,7 +69,7 @@ dispatcher.add_handler(ConversationHandler(
     states={
         GROUP_CHANGE: [CallbackQueryHandler(group_action, pattern='group.change.')],
         GROUP_ACTION: [CallbackQueryHandler(group_action_select, pattern='group.', pass_user_data=True)],
-        GROUP_ADD_MEMBERS: [CommandHandler('done', group_add_members_done),
+        GROUP_ADD_MEMBERS: [CommandHandler('done', group_add_members_done, pass_user_data=True),
                             MessageHandler(Filters.text, group_add_members, pass_user_data=True)],
     },
     fallbacks=[]))
