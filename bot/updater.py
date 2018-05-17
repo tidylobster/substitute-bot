@@ -1,13 +1,10 @@
 # coding: utf-8
 import logging
-from uuid import uuid4
 from decouple import Config, RepositoryEnv
-
 from telegram.ext import *
-from telegram.utils.helpers import escape_markdown
-from telegram import InlineQueryResultArticle, InputTextMessageContent, ParseMode
 
 from .groups import *
+from .inlinequery import *
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,37 +21,8 @@ def error(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
 
-def stub(bot, update):
-    update.callback_query.answer()
-    update.effective_message.reply_text("You reached stub. Exiting...")
-    return ConversationHandler.END
-
-
-@database.atomic()
-def inlinequery(bot, update):
-    query = update.inline_query.query
-
-    results = []
-    for group in Group.select().where(Group.user == update.effective_user.id):
-        members = ' '.join(member.alias for member in group.members)
-        results.append(InlineQueryResultArticle(
-            id=group.id,
-            title=f'@{group.name}',
-            input_message_content=InputTextMessageContent(
-                f'{members}\n{query}'),
-            description=f'{members}\n{query}'))
-
-    if not results and query:
-        results.append(InlineQueryResultArticle(
-            id=uuid4(),
-            title="You don't have any existing group yet.",
-            input_message_content=InputTextMessageContent(query),
-            description=query))
-    update.inline_query.answer(results)
-
-
 dispatcher.add_error_handler(error)
-dispatcher.add_handler(InlineQueryHandler(inlinequery))
+dispatcher.add_handler(InlineQueryHandler(substitute_query))
 dispatcher.add_handler(ConversationHandler(
     entry_points=[CommandHandler('create', create_group_start)],
     states={

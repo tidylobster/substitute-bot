@@ -2,3 +2,4 @@
 from . import updater
 from . import models
 from . import groups
+from . import inlinequery
