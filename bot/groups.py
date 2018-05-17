@@ -20,7 +20,7 @@ def _validate_alias(alias):
         return False, 'Username should start with @.'
     if not 4 < len(alias) < 33 or '@' in alias and not 5 < len(alias) < 34:
         return False, 'Length of the username must be 5-32 symbols.'
-    if len(re.findall('[^@a-zA-Z\d]+', alias)):
+    if len(re.findall('[^@_a-zA-Z\d]+', alias)):
         return False, 'Invalid symbols in the username.'
     return True, None
 
