@@ -10,10 +10,27 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 config = Config(RepositoryEnv('config.env'))
-updater = Updater(token=config('TOKEN'), request_kwargs={
-    'proxy_url': 'socks5://163.172.152.192:1080',
-})
+updater = Updater(token=config('TOKEN'))
 dispatcher = updater.dispatcher
+
+
+def start(bot, update):
+    update.effective_message.reply_text(
+        'Hello. I can /create groups for you and keep all your friends inside them. '
+        'You can call me anytime using inline mode via @substitute_bot and pick those groups '
+        'to be printed in your messages.')
+    update.effective_message.reply_text('Try now!')
+
+
+def help(bot, update):
+    update.effective_message.reply_text(
+        '/create - create new groups\n'
+        '/change - adjust created groups')
+
+
+def cancel(bot, update):
+    update.effective_message.reply_text('Sure, what now? /help')
+    return ConversationHandler.END
 
 
 def error(bot, update, error):
@@ -22,13 +39,15 @@ def error(bot, update, error):
 
 
 dispatcher.add_error_handler(error)
+dispatcher.add_handler(CommandHandler('start', start))
+dispatcher.add_handler(CommandHandler('help', help))
 dispatcher.add_handler(InlineQueryHandler(substitute_query))
 dispatcher.add_handler(ConversationHandler(
     entry_points=[CommandHandler('create', group_create)],
     states={
         CREATE_GROUP: [MessageHandler(Filters.text, group_create_complete)]
     },
-    fallbacks=[]))
+    fallbacks=[CommandHandler('cancel', cancel)]))
 
 dispatcher.add_handler(CommandHandler('change', group_change))
 dispatcher.add_handler(ConversationHandler(
@@ -42,4 +61,4 @@ dispatcher.add_handler(ConversationHandler(
         GROUP_RENAME: [MessageHandler(Filters.text, group_rename_complete, pass_user_data=True)],
         GROUP_DELETE: [CallbackQueryHandler(group_delete_complete, pass_user_data=True)]
     },
-    fallbacks=[]))
+    fallbacks=[CommandHandler('cancel', cancel)]))

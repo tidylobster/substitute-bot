@@ -42,9 +42,11 @@ def _build_action_menu(group):
         [InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
          InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')]]
 
-    message = f'Choose an action for @{group.name} group.\n\nMembers:'
-    for member in group.members:
-        message = f'{message}\n{member.alias}'
+    message = f'Choose an action for @{group.name} group.'
+    if group.members:
+        message = f'{message}\n\nMembers:'
+        for member in group.members:
+            message = f'{message}\n{member.alias}'
     return message, keyboard
 
 
@@ -71,7 +73,7 @@ def group_create(bot, update):
         update.effective_message.reply_text('You cannot have more that 10 groups.')
         return ConversationHandler.END
 
-    update.effective_message.reply_text('Ok, send the name of the group /cancel')
+    update.effective_message.reply_text('Ok, send the name of the group. /cancel')
     return CREATE_GROUP
 
 
@@ -207,7 +209,7 @@ def group_member_exit(bot, update, user_data):
 
 def group_rename(bot, update):
     update.callback_query.answer()
-    update.effective_message.reply_text('Send the new name of the group')
+    update.effective_message.reply_text('Send the new name of the group.')
     return GROUP_RENAME
 
 
