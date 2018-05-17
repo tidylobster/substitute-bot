@@ -5,7 +5,7 @@ from telegram.ext import ConversationHandler
 from peewee import IntegrityError
 from .models import database, Group, GroupUsers
 
-CREATE_GROUP, GROUP_CHANGE, GROUP_ACTION, GROUP_ADD_MEMBERS = range(4)
+CREATE_GROUP, GROUP_CHANGE, GROUP_ACTION, GROUP_ADD_MEMBERS, GROUP_MEMBER_REMOVE = range(5)
 
 
 def _validate_alias(alias):
@@ -32,8 +32,20 @@ def _build_action_menu(group):
     message = f'Choose an action for @{group.name} group.\n\nMembers:'
     for member in group.members:
         message = f'{message}\n{member.alias}'
-
     return message, keyboard
+
+
+def _build_members_menu(group):
+    keyboard = []
+    for index, member in enumerate(group.members):
+        if index % 2 == 0:
+            keyboard.append([InlineKeyboardButton(member.alias, callback_data=f'group.member.remove.{member.id}')])
+        else:
+            keyboard[-1].append(InlineKeyboardButton(member.alias, callback_data=f'group.member.remove.{member.id}'))
+    else:
+        keyboard.append([InlineKeyboardButton('← Back', callback_data='group.member.exit')])
+    return None, keyboard
+
 
 @database.atomic()
 def create_group_start(bot, update):
@@ -105,7 +117,8 @@ def group_action_select(bot, update, user_data):
         return GROUP_ADD_MEMBERS
 
     if action == 'remove':
-        pass
+        return group_member_remove(bot, update, user_data)
+
     if action == 'rename':
         pass
     if action == 'delete':
@@ -115,6 +128,7 @@ def group_action_select(bot, update, user_data):
     return ConversationHandler.END  # should never hit this..
 
 
+@database.atomic()
 def group_add_members(bot, update, user_data):
     group = Group.get_by_id(user_data.get('effective_group'))
     try:
@@ -132,9 +146,40 @@ def group_add_members(bot, update, user_data):
         return GROUP_ADD_MEMBERS
 
 
+@database.atomic()
 def group_add_members_done(bot, update, user_data):
     update.effective_message.reply_text('Saved new members.')
 
     message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')))
     update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    return GROUP_ACTION
+
+
+@database.atomic()
+def group_member_remove(bot, update, user_data):
+    _, keyboard = _build_members_menu(Group.get_by_id(user_data.get('effective_group')))
+    if len(keyboard) == 1:
+        update.callback_query.answer("There isn't any member in this group.")
+        return GROUP_ACTION
+    update.effective_message.edit_text('Choose members to remove.', reply_markup=InlineKeyboardMarkup(keyboard))
+    return GROUP_MEMBER_REMOVE
+
+
+@database.atomic()
+def group_member_remove_complete(bot, update, user_data):
+    member_id = update.callback_query.data.split('.')[-1]
+    GroupUsers.delete().where(GroupUsers.id == member_id).execute()
+    _, keyboard = _build_members_menu(Group.get_by_id(user_data.get('effective_group')))
+    if len(keyboard) == 1:
+        message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')))
+        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        update.effective_message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    return GROUP_MEMBER_REMOVE
+
+
+@database.atomic()
+def group_member_exit(bot, update, user_data):
+    message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')))
+    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
     return GROUP_ACTION

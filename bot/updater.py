@@ -32,7 +32,6 @@ def stub(bot, update):
 
 @database.atomic()
 def inlinequery(bot, update):
-    """Handle the inline query."""
     query = update.inline_query.query
 
     results = []
@@ -49,9 +48,8 @@ def inlinequery(bot, update):
         results.append(InlineQueryResultArticle(
             id=uuid4(),
             title="You don't have any existing group yet.",
-            input_message_content=InputTextMessageContent(query)
-        ))
-
+            input_message_content=InputTextMessageContent(query),
+            description=query))
     update.inline_query.answer(results)
 
 
@@ -71,5 +69,7 @@ dispatcher.add_handler(ConversationHandler(
         GROUP_ACTION: [CallbackQueryHandler(group_action_select, pattern='group.', pass_user_data=True)],
         GROUP_ADD_MEMBERS: [CommandHandler('done', group_add_members_done, pass_user_data=True),
                             MessageHandler(Filters.text, group_add_members, pass_user_data=True)],
+        GROUP_MEMBER_REMOVE: [CallbackQueryHandler(group_member_exit, pattern='group.member.exit', pass_user_data=True),
+                              CallbackQueryHandler(group_member_remove_complete, pattern='group.member.remove.', pass_user_data=True)]
     },
     fallbacks=[]))
