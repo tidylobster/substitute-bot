@@ -7,20 +7,20 @@ from telegram import InlineQueryResultArticle, InputTextMessageContent
 
 from .models import database, Group, GroupUsers
 
-Substitution = namedtuple('Substitution', 'end group_id')
+Substitution = namedtuple('Substitution', 'id name start end ')
 
 
 # Internal functions
 # ------------------
 
 def _substitute(message, groups, draft=False):
-    shift, msg = 0, message[:]
+    shift, new_msg = -1, message[:]
     for sub in groups:
-        group = Group.get_by_id(sub.group_id)
-        new_message = '( ... )' if draft else f'({", ".join("@" + member.alias for member in group.members)})'
-        msg[sub.end+shift+1:sub.end+shift+2] = new_message
-        shift += len(new_message)
-    return msg
+        group = Group.get_by_id(sub.id)
+        replacements = '( ... )' if draft else f'{" ".join(member.alias for member in group.members)}'
+        new_msg = f'{new_msg[:sub.start+shift]}{replacements}{new_msg[sub.end + shift:]}'
+        shift += len(replacements) - len(sub.name)
+    return new_msg
 
 
 # Inline Query
@@ -33,17 +33,18 @@ def substitute_query(bot, update):
 
     if query:
         substitutions = []
-        user_groups = Group.select().where(Group.user_id == update.effective_user.id)
+        user_groups = Group.select().where(Group.user == update.effective_user.id)
         translitted = translit(query, 'ru', reversed=True)
         for group in user_groups:
-            groups = re.findall(group.name, translitted, re.MULTILINE)
-            substitutions.extend(Substitution(item.end, group.id) for item in groups)
+            groups = re.finditer(f'@?{group.name}', translitted, re.MULTILINE)
+            substitutions.extend(Substitution(group.id, group.name, item.start(0), item.end(0)) for item in groups)
 
-        results.append(InlineQueryResultArticle(
-            id=uuid4(),
-            title="Automatic",
-            input_message_content=InputTextMessageContent(_substitute(query, substitutions)),
-            description=_substitute(query, substitutions, draft=True)))
+        if substitutions:
+            results.append(InlineQueryResultArticle(
+                id=uuid4(),
+                title="Auto",
+                input_message_content=InputTextMessageContent(_substitute(query, substitutions)),
+                description=_substitute(query, substitutions, draft=True)))
 
     for group in Group.select().where(Group.user == update.effective_user.id):
         members = ' '.join(member.alias for member in group.members)

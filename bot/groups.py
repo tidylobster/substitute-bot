@@ -5,7 +5,7 @@ from telegram.ext import ConversationHandler
 from peewee import IntegrityError
 from .models import database, Group, GroupUsers
 
-CREATE_GROUP, GROUP_CHANGE, GROUP_ACTION, GROUP_ADD_MEMBERS, GROUP_MEMBER_REMOVE, GROUP_RENAME, GROUP_DELETE = range(7)
+CREATE_GROUP, GROUP_ACTION, GROUP_ADD_MEMBERS, GROUP_MEMBER_REMOVE, GROUP_RENAME, GROUP_DELETE = range(6)
 
 
 # Internal functions
@@ -105,9 +105,7 @@ def group_change(bot, update):
         update.effective_message.reply_text("You don't have any created groups yet. "
                                             "Use /create command to create a group.")
         return ConversationHandler.END
-
     update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-    return GROUP_CHANGE
 
 
 @database.atomic()
@@ -247,15 +245,15 @@ def group_delete(bot, update, user_data):
 
 @database.atomic()
 def group_delete_complete(bot, update, user_data):
-    group = user_data.get('effective_user')
+    group = Group.get_by_id(user_data.get('effective_group'))
     action = update.callback_query.data.split('.')[-1]
 
     if action == 'yes':
         group.delete_instance()
-        update.effective_message.reply_text('Group deleted.')
+        update.callback_query.answer('Group deleted')
         message, keyboard = _build_group_menu(update.effective_user.id)
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-        return GROUP_CHANGE
+        return ConversationHandler.END
 
     if action == 'no':
         message, keyboard = _build_action_menu(group)

@@ -30,14 +30,16 @@ dispatcher.add_handler(ConversationHandler(
     },
     fallbacks=[]))
 
+dispatcher.add_handler(CommandHandler('change', group_change))
 dispatcher.add_handler(ConversationHandler(
-    entry_points=[CommandHandler('change', group_change)],
+    entry_points=[CallbackQueryHandler(group_action, pattern='group.change.')],
     states={
-        GROUP_CHANGE: [CallbackQueryHandler(group_action, pattern='group.change.')],
         GROUP_ACTION: [CallbackQueryHandler(group_action_select, pattern='group.', pass_user_data=True)],
         GROUP_ADD_MEMBERS: [CommandHandler('done', group_add_members_done, pass_user_data=True),
                             MessageHandler(Filters.text, group_add_members, pass_user_data=True)],
         GROUP_MEMBER_REMOVE: [CallbackQueryHandler(group_member_exit, pattern='group.member.exit', pass_user_data=True),
-                              CallbackQueryHandler(group_member_remove_complete, pattern='group.member.remove.', pass_user_data=True)]
+                              CallbackQueryHandler(group_member_remove_complete, pattern='group.member.remove.', pass_user_data=True)],
+        GROUP_RENAME: [MessageHandler(Filters.text, group_rename_complete, pass_user_data=True)],
+        GROUP_DELETE: [CallbackQueryHandler(group_delete_complete, pass_user_data=True)]
     },
     fallbacks=[]))
