@@ -24,9 +24,9 @@ def error(bot, update, error):
 dispatcher.add_error_handler(error)
 dispatcher.add_handler(InlineQueryHandler(substitute_query))
 dispatcher.add_handler(ConversationHandler(
-    entry_points=[CommandHandler('create', create_group_start)],
+    entry_points=[CommandHandler('create', group_create)],
     states={
-        CREATE_GROUP: [MessageHandler(Filters.text, create_group_complete)]
+        CREATE_GROUP: [MessageHandler(Filters.text, group_create_complete)]
     },
     fallbacks=[]))
 

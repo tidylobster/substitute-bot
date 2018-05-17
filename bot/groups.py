@@ -8,6 +8,9 @@ from .models import database, Group, GroupUsers
 CREATE_GROUP, GROUP_CHANGE, GROUP_ACTION, GROUP_ADD_MEMBERS, GROUP_MEMBER_REMOVE, GROUP_RENAME, GROUP_DELETE = range(7)
 
 
+# Internal functions
+# ------------------
+
 def _validate_alias(alias):
     if len(alias.split(' ')) > 1:
         return False, 'Multiple usernames sent all at once. Try to send them one by one.'
@@ -57,8 +60,11 @@ def _build_members_menu(group):
     return None, keyboard
 
 
+# /create command
+# ---------------
+
 @database.atomic()
-def create_group_start(bot, update):
+def group_create(bot, update):
     # Checking, that user has not exceeded the limit.
     groups = Group.select().where(Group.user == update.effective_message.from_user.id)
     if len(groups) > 10:
@@ -70,7 +76,7 @@ def create_group_start(bot, update):
 
 
 @database.atomic()
-def create_group_complete(bot, update):
+def group_create_complete(bot, update):
     # Check, if group name has more tha 32 letters
     validated, message = _validate_alias(update.effective_message.text)
 
@@ -88,6 +94,9 @@ def create_group_complete(bot, update):
     finally:
         return ConversationHandler.END
 
+
+# /change command
+# ---------------
 
 @database.atomic()
 def group_change(bot, update):
@@ -132,6 +141,9 @@ def group_action_select(bot, update, user_data):
     return ConversationHandler.END  # should never hit this..
 
 
+# Adding members
+# --------------
+
 @database.atomic()
 def group_add_members(bot, update, user_data):
     group = Group.get_by_id(user_data.get('effective_group'))
@@ -158,6 +170,9 @@ def group_add_members_done(bot, update, user_data):
     update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
     return GROUP_ACTION
 
+
+# Removing members
+# ----------------
 
 @database.atomic()
 def group_member_remove(bot, update, user_data):
@@ -189,6 +204,9 @@ def group_member_exit(bot, update, user_data):
     return GROUP_ACTION
 
 
+# Renaming group
+# --------------
+
 def group_rename(bot, update):
     update.callback_query.answer()
     update.effective_message.reply_text('Send the new name of the group')
@@ -211,6 +229,9 @@ def group_rename_complete(bot, update, user_data):
     update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
     return GROUP_ACTION
 
+
+# Deleting group
+# --------------
 
 @database.atomic()
 def group_delete(bot, update, user_data):

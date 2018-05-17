@@ -10,6 +10,9 @@ from .models import database, Group, GroupUsers
 Substitution = namedtuple('Substitution', 'end group_id')
 
 
+# Internal functions
+# ------------------
+
 def _substitute(message, groups, draft=False):
     shift, msg = 0, message[:]
     for sub in groups:
@@ -19,6 +22,9 @@ def _substitute(message, groups, draft=False):
         shift += len(new_message)
     return msg
 
+
+# Inline Query
+# ------------
 
 @database.atomic()
 def substitute_query(bot, update):
