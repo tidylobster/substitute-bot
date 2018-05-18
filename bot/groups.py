@@ -141,7 +141,7 @@ def group_action_select(bot, update, user_data):
 
     if action == 'return':
         message, keyboard = _build_group_menu(update.effective_user.id)
-        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup)
+        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
 
     return ConversationHandler.END
 
