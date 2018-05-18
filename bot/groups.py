@@ -40,7 +40,8 @@ def _build_action_menu(group):
         [InlineKeyboardButton('Add members', callback_data=f'group.add.{group.id}'),
          InlineKeyboardButton('Remove members', callback_data=f'group.remove.{group.id}')],
         [InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
-         InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')]]
+         InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')],
+        [InlineKeyboardButton('← Back', callback_data=f'group.return.{group.id}')]]
 
     message = f'Choose an action for @{group.name} group.'
     if group.members:
@@ -102,7 +103,7 @@ def group_create_complete(bot, update):
 
 @database.atomic()
 def group_change(bot, update):
-    message, keyboard = _build_group_menu(update.effective_message.from_user.id)
+    message, keyboard = _build_group_menu(update.effective_user.id)
     if not keyboard:
         update.effective_message.reply_text("You don't have any created groups yet. "
                                             "Use /create command to create a group.")
@@ -138,7 +139,11 @@ def group_action_select(bot, update, user_data):
     if action == 'delete':
         return group_delete(bot, update, user_data)
 
-    return ConversationHandler.END  # should never hit this..
+    if action == 'return':
+        message, keyboard = _build_group_menu(update.effective_user.id)
+        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup)
+
+    return ConversationHandler.END
 
 
 # Adding members
