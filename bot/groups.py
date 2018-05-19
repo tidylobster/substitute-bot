@@ -1,7 +1,11 @@
 # coding: utf-8
 import re
+import os
+import string
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ConversationHandler
+from transliterate import translit
+from transliterate.contrib import languages
 from peewee import IntegrityError
 from .models import database, Group, GroupUsers
 
@@ -11,7 +15,14 @@ CREATE_GROUP, GROUP_ACTION, GROUP_ADD_MEMBERS, GROUP_MEMBER_REMOVE, GROUP_RENAME
 # Internal functions
 # ------------------
 
-def _validate_alias(alias):
+
+def _construct_alphabet():
+    return 'ՏyIэԵПЕΜეцхլвaeբPчαზΛbнTбՑзлОწыრვДSdიԼZβρMիХჯლЧСბжֆGъоаγKфთWVђՅNuաԿτΞզкшЦlπУЋгΚҐჰgQნФքօუFґԽկΖსყЫ' \
+           'խsЖΡΥXБგрνკԻkМЗեյԴտEჟԶjYλziеՆЈրΕсՍεκЬՄЪHoOЭІოხհΠգpBАՎფδНΣՖΦпմИმΒაfცrվйтtդԱьШΔοպՐιіΤwUԳКζxүდპDս' \
+           'ћυLиЙμΑЂქΝԲՀВևqφЛhΟσмТնցՊCRјҮՔРJcξՕΙnΓдГvmуტA'
+
+
+def _validate_alias(alias, alphabet=''):
     if len(alias.split(' ')) > 1:
         return False, 'Multiple usernames sent all at once. Try to send them one by one.'
     if len(re.findall('@', alias)) > 1:
@@ -20,7 +31,8 @@ def _validate_alias(alias):
         return False, 'Username should start with @.'
     if not 4 < len(alias) < 33 or '@' in alias and not 5 < len(alias) < 34:
         return False, 'Length of the username must be 5-32 symbols.'
-    if len(re.findall('[^@_a-zA-Z\d]+', alias)):
+
+    if len(re.findall(f'[^@_a-zA-Z{alphabet}\d]+', alias)):
         return False, 'Invalid symbols in the username.'
     return True, None
 
@@ -29,7 +41,7 @@ def _build_group_menu(user_id):
     keyboard = []
     for group in Group.select().where(Group.user == user_id):
         keyboard.append([InlineKeyboardButton(
-            text=f'@{group.name} | {len(group.members)} member(s)',
+            text=f'{group.name} | {len(group.members)} member(s)',
             callback_data=f'group.change.{group.id}'
         )])
     return 'Choose the group', keyboard
@@ -43,7 +55,7 @@ def _build_action_menu(group):
          InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')],
         [InlineKeyboardButton('← Back', callback_data=f'group.return.{group.id}')]]
 
-    message = f'Choose an action for @{group.name} group.'
+    message = f'Choose an action for {group.name} group.'
     if group.members:
         message = f'{message}\n\nMembers:'
         for member in group.members:
@@ -81,16 +93,23 @@ def group_create(bot, update):
 @database.atomic()
 def group_create_complete(bot, update):
     # Check, if group name has more tha 32 letters
-    validated, message = _validate_alias(update.effective_message.text)
+    validated, message = _validate_alias(update.effective_message.text, alphabet=_construct_alphabet())
 
     if not validated:
         update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
         return CREATE_GROUP
 
     try:
+        # group_name preprocessing
+        group_name = update.effective_message.text
+        group_name = f'@{group_name}' if not group_name.startswith('@') else group_name
+        alphabet = string.ascii_letters + string.digits + '@_'
+        if not all(map(lambda x: x in alphabet, group_name)):
+            group_name = translit(group_name, reversed=True)
+
         Group.create(
             user=update.effective_message.from_user.id,
-            name=update.effective_message.text)
+            name=group_name)
         update.effective_message.reply_text('Saved.')
     except IntegrityError:  # Index fell down
         update.effective_message.reply_text('You have already created a group with that name.')

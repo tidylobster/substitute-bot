@@ -50,10 +50,10 @@ def substitute_query(bot, update):
         members = ' '.join(member.alias for member in group.members)
         results.append(InlineQueryResultArticle(
             id=group.id,
-            title=f'@{group.name}',
+            title=f'{group.name}',
             input_message_content=InputTextMessageContent(
                 f'{query}\n{members}'),
-            description=f'{members}\n{query}'))
+            description=f'{members}'))
 
     if not results and query:
         results.append(InlineQueryResultArticle(
