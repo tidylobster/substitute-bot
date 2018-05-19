@@ -24,8 +24,12 @@ def start(bot, update):
 
 def help(bot, update):
     update.effective_message.reply_text(
-        '/create - create new groups\n'
-        '/change - adjust created groups')
+        '/create - create a new group\n'
+        '/groups - list of all of your groups')
+
+
+def expired_session(bot, update):
+    update.callback_query.answer('Session expired. Start again.')
 
 
 def cancel(bot, update):
@@ -38,27 +42,60 @@ def error(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
 
+# defaults
 dispatcher.add_error_handler(error)
 dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('help', help))
-dispatcher.add_handler(InlineQueryHandler(substitute_query))
+
+# inline mode
+dispatcher.add_handler(InlineQueryHandler(inline_mode))
+
+# creating groups
 dispatcher.add_handler(ConversationHandler(
     entry_points=[CommandHandler('create', group_create)],
     states={
-        CREATE_GROUP: [MessageHandler(Filters.text, group_create_complete)]
-    },
+        CREATE_GROUP: [
+            MessageHandler(Filters.text, group_create_complete)]},
     fallbacks=[CommandHandler('cancel', cancel)]))
 
-dispatcher.add_handler(CommandHandler('change', group_change))
+dispatcher.add_handler(CommandHandler('groups', group_list))
+dispatcher.add_handler(CallbackQueryHandler(group_open, pattern='group.list.', pass_user_data=True))
+
+# adding members
 dispatcher.add_handler(ConversationHandler(
-    entry_points=[CallbackQueryHandler(group_action, pattern='group.change.')],
+    entry_points=[CallbackQueryHandler(group_add_members_enter, pattern='group.add.', pass_user_data=True)],
     states={
-        GROUP_ACTION: [CallbackQueryHandler(group_action_select, pattern='group.', pass_user_data=True)],
-        GROUP_ADD_MEMBERS: [CommandHandler('done', group_add_members_done, pass_user_data=True),
-                            MessageHandler(Filters.text, group_add_members, pass_user_data=True)],
-        GROUP_MEMBER_REMOVE: [CallbackQueryHandler(group_member_exit, pattern='group.member.exit', pass_user_data=True),
-                              CallbackQueryHandler(group_member_remove_complete, pattern='group.member.remove.', pass_user_data=True)],
-        GROUP_RENAME: [MessageHandler(Filters.text, group_rename_complete, pass_user_data=True)],
-        GROUP_DELETE: [CallbackQueryHandler(group_delete_complete, pass_user_data=True)]
-    },
+        GROUP_ADD_MEMBERS: [
+            CommandHandler('done', group_add_members_complete, pass_user_data=True),
+            MessageHandler(Filters.text, group_add_members, pass_user_data=True)]},
     fallbacks=[CommandHandler('cancel', cancel)]))
+
+# removing members
+dispatcher.add_handler(ConversationHandler(
+    entry_points=[CallbackQueryHandler(group_remove_enter, pattern='group.remove.', pass_user_data=True)],
+    states={
+        GROUP_REMOVE_MEMBERS: [
+            CallbackQueryHandler(group_remove_exit, pattern='group.remove.exit', pass_user_data=True),
+            CallbackQueryHandler(group_remove_members, pattern='group.remove.member.', pass_user_data=True)]},
+    fallbacks=[CommandHandler('cancel', cancel)], conversation_timeout=120))
+
+# renaming groups
+dispatcher.add_handler(ConversationHandler(
+    entry_points=[CallbackQueryHandler(group_rename_enter, pattern='group.rename.', pass_user_data=True)],
+    states={
+        GROUP_RENAME: [
+            MessageHandler(Filters.text, group_rename_complete, pass_user_data=True)]},
+    fallbacks=[CommandHandler('cancel', cancel)]))
+
+# deleting groups
+dispatcher.add_handler(ConversationHandler(
+    entry_points=[CallbackQueryHandler(group_delete_enter, pattern='group.delete.', pass_user_data=True)],
+    states={
+        GROUP_DELETE: [
+            CallbackQueryHandler(group_delete_complete, pass_user_data=True)]},
+    fallbacks=[CommandHandler('cancel', cancel)], conversation_timeout=60))
+
+dispatcher.add_handler(CallbackQueryHandler(group_exit, pattern='group.exit'))
+
+# unexpected callback_queryies
+dispatcher.add_handler(CallbackQueryHandler(expired_session))

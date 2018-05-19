@@ -9,7 +9,7 @@ from transliterate.contrib import languages
 from peewee import IntegrityError
 from .models import database, Group, GroupUsers
 
-CREATE_GROUP, GROUP_ACTION, GROUP_ADD_MEMBERS, GROUP_MEMBER_REMOVE, GROUP_RENAME, GROUP_DELETE = range(6)
+CREATE_GROUP, GROUP_ACTION, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE = range(6)
 
 
 # Internal functions
@@ -22,7 +22,15 @@ def _construct_alphabet():
            'ћυLиЙμΑЂქΝԲՀВևqφЛhΟσмТնցՊCRјҮՔРJcξՕΙnΓдГvmуტA'
 
 
-def _validate_alias(alias, alphabet=''):
+def _construct_group_name(group_name):
+    group_name = f'@{group_name}' if not group_name.startswith('@') else group_name
+    alphabet = string.ascii_letters + string.digits + '@_'
+    if not all(map(lambda x: x in alphabet, group_name)):
+        group_name = translit(group_name, reversed=True)
+    return group_name
+
+
+def _validate_alias(alias, use_alphabet=False):
     if len(alias.split(' ')) > 1:
         return False, 'Multiple usernames sent all at once. Try to send them one by one.'
     if len(re.findall('@', alias)) > 1:
@@ -32,6 +40,7 @@ def _validate_alias(alias, alphabet=''):
     if not 4 < len(alias) < 33 or '@' in alias and not 5 < len(alias) < 34:
         return False, 'Length of the username must be 5-32 symbols.'
 
+    alphabet = _construct_alphabet() if use_alphabet else ''
     if len(re.findall(f'[^@_a-zA-Z{alphabet}\d]+', alias)):
         return False, 'Invalid symbols in the username.'
     return True, None
@@ -42,7 +51,7 @@ def _build_group_menu(user_id):
     for group in Group.select().where(Group.user == user_id):
         keyboard.append([InlineKeyboardButton(
             text=f'{group.name} | {len(group.members)} member(s)',
-            callback_data=f'group.change.{group.id}'
+            callback_data=f'group.list.{group.id}'
         )])
     return 'Choose the group', keyboard
 
@@ -53,7 +62,7 @@ def _build_action_menu(group):
          InlineKeyboardButton('Remove members', callback_data=f'group.remove.{group.id}')],
         [InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
          InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')],
-        [InlineKeyboardButton('← Back', callback_data=f'group.return.{group.id}')]]
+        [InlineKeyboardButton('← Back', callback_data=f'group.exit')]]
 
     message = f'Choose an action for {group.name} group.'
     if group.members:
@@ -67,11 +76,11 @@ def _build_members_menu(group):
     keyboard = []
     for index, member in enumerate(group.members):
         if index % 2 == 0:
-            keyboard.append([InlineKeyboardButton(member.alias, callback_data=f'group.member.remove.{member.id}')])
+            keyboard.append([InlineKeyboardButton(member.alias, callback_data=f'group.remove.member.{member.id}')])
         else:
-            keyboard[-1].append(InlineKeyboardButton(member.alias, callback_data=f'group.member.remove.{member.id}'))
+            keyboard[-1].append(InlineKeyboardButton(member.alias, callback_data=f'group.remove.member.{member.id}'))
     else:
-        keyboard.append([InlineKeyboardButton('← Back', callback_data='group.member.exit')])
+        keyboard.append([InlineKeyboardButton('← Back', callback_data='group.remove.exit')])
     return None, keyboard
 
 
@@ -93,35 +102,29 @@ def group_create(bot, update):
 @database.atomic()
 def group_create_complete(bot, update):
     # Check, if group name has more tha 32 letters
-    validated, message = _validate_alias(update.effective_message.text, alphabet=_construct_alphabet())
+    validated, message = _validate_alias(update.effective_message.text, use_alphabet=True)
 
     if not validated:
         update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
         return CREATE_GROUP
 
     try:
-        # group_name preprocessing
-        group_name = update.effective_message.text
-        group_name = f'@{group_name}' if not group_name.startswith('@') else group_name
-        alphabet = string.ascii_letters + string.digits + '@_'
-        if not all(map(lambda x: x in alphabet, group_name)):
-            group_name = translit(group_name, reversed=True)
-
+        group_name = _construct_group_name(update.effective_message.text)
         Group.create(
             user=update.effective_message.from_user.id,
             name=group_name)
-        update.effective_message.reply_text('Saved.')
+        update.effective_message.reply_text('Saved. You can see all of your /groups if you like.')
     except IntegrityError:  # Index fell down
         update.effective_message.reply_text('You have already created a group with that name.')
     finally:
         return ConversationHandler.END
 
 
-# /change command
+# /groups command
 # ---------------
 
 @database.atomic()
-def group_change(bot, update):
+def group_list(bot, update):
     message, keyboard = _build_group_menu(update.effective_user.id)
     if not keyboard:
         update.effective_message.reply_text("You don't have any created groups yet. "
@@ -131,42 +134,29 @@ def group_change(bot, update):
 
 
 @database.atomic()
-def group_action(bot, update):
-    data = update.callback_query.data.split('.')
-    message, keyboard = _build_action_menu(Group.get_by_id(data[-1]))
-    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-    return GROUP_ACTION
-
-
-def group_action_select(bot, update, user_data):
-    update.callback_query.answer()
+def group_open(bot, update, user_data):
     user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
-    action = update.callback_query.data.split('.')[-2]  # specifies, which action has to be performed
+    message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')))
+    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
 
-    if action == 'add':
-        update.effective_message.reply_text(
-            f'Ok, send usernames (like @{update.effective_user.username}) one by one. '
-            f'When you will be ready, send /done for completing.')
-        return GROUP_ADD_MEMBERS
 
-    if action == 'remove':
-        return group_member_remove(bot, update, user_data)
-
-    if action == 'rename':
-        return group_rename(bot, update)
-
-    if action == 'delete':
-        return group_delete(bot, update, user_data)
-
-    if action == 'return':
-        message, keyboard = _build_group_menu(update.effective_user.id)
-        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-
-    return ConversationHandler.END
+@database.atomic()
+def group_exit(bot, update):
+    message, keyboard = _build_group_menu(update.effective_user.id)
+    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 # Adding members
 # --------------
+
+def group_add_members_enter(bot, update, user_data):
+    user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
+    update.callback_query.answer()
+    update.effective_message.reply_text(
+        f'Ok, send usernames (like @{update.effective_user.username}) one by one. '
+        f'When you will be ready, send /done for completing.')
+    return GROUP_ADD_MEMBERS
+
 
 @database.atomic()
 def group_add_members(bot, update, user_data):
@@ -187,7 +177,7 @@ def group_add_members(bot, update, user_data):
 
 
 @database.atomic()
-def group_add_members_done(bot, update, user_data):
+def group_add_members_complete(bot, update, user_data):
     update.effective_message.reply_text('Saved new members.')
 
     message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')))
@@ -199,17 +189,18 @@ def group_add_members_done(bot, update, user_data):
 # ----------------
 
 @database.atomic()
-def group_member_remove(bot, update, user_data):
+def group_remove_enter(bot, update, user_data):
+    user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
     _, keyboard = _build_members_menu(Group.get_by_id(user_data.get('effective_group')))
     if len(keyboard) == 1:
         update.callback_query.answer("There isn't any member in this group.")
-        return GROUP_ACTION
+        return ConversationHandler.END
     update.effective_message.edit_text('Choose members to remove.', reply_markup=InlineKeyboardMarkup(keyboard))
-    return GROUP_MEMBER_REMOVE
+    return GROUP_REMOVE_MEMBERS
 
 
 @database.atomic()
-def group_member_remove_complete(bot, update, user_data):
+def group_remove_members(bot, update, user_data):
     member_id = update.callback_query.data.split('.')[-1]
     GroupUsers.delete().where(GroupUsers.id == member_id).execute()
     _, keyboard = _build_members_menu(Group.get_by_id(user_data.get('effective_group')))
@@ -218,50 +209,56 @@ def group_member_remove_complete(bot, update, user_data):
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
     else:
         update.effective_message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
-    return GROUP_MEMBER_REMOVE
+    return GROUP_REMOVE_MEMBERS
 
 
 @database.atomic()
-def group_member_exit(bot, update, user_data):
+def group_remove_exit(bot, update, user_data):
     message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')))
     update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-    return GROUP_ACTION
+    return ConversationHandler.END
 
 
 # Renaming group
 # --------------
 
-def group_rename(bot, update):
+def group_rename_enter(bot, update, user_data):
     update.callback_query.answer()
+    user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
     update.effective_message.reply_text('Send the new name of the group.')
     return GROUP_RENAME
 
 
 @database.atomic()
 def group_rename_complete(bot, update, user_data):
-    validated, message = _validate_alias(update.effective_message.text)
+    validated, message = _validate_alias(update.effective_message.text, use_alphabet=True)
     if not validated:
         update.effective_message.reply_text(f'Sorry, invalid group. {message}')
         return GROUP_RENAME
 
     group = Group.get_by_id(user_data.get('effective_group'))
-    group.name = update.effective_message.text
-    group.save()
-    update.effective_message.reply_text('Saved.')
+    try:
+        group.name = _construct_group_name(update.effective_message.text)
+        group.save()
+        update.effective_message.reply_text('Saved.')
+    except IntegrityError:
+        update.effective_message.reply_text("You've already created a group with that name. Try again or /cancel")
+        return GROUP_RENAME
 
     message, keyboard = _build_action_menu(group)
     update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-    return GROUP_ACTION
+    return ConversationHandler.END
 
 
 # Deleting group
 # --------------
 
 @database.atomic()
-def group_delete(bot, update, user_data):
+def group_delete_enter(bot, update, user_data):
+    user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
     group = Group.get_by_id(user_data.get('effective_group'))
     update.effective_message.edit_text(
-        text=f'Are you sure, you want to delete the group @{group.name}?',
+        text=f'Are you sure, you want to delete the group {group.name}?',
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton('Yes', callback_data='group.delete.yes'),
              InlineKeyboardButton('No', callback_data='group.delete.no')]
@@ -276,12 +273,12 @@ def group_delete_complete(bot, update, user_data):
 
     if action == 'yes':
         group.delete_instance()
-        update.callback_query.answer('Group deleted')
+        update.callback_query.answer('Group have been deleted')
         message, keyboard = _build_group_menu(update.effective_user.id)
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-        return ConversationHandler.END
 
     if action == 'no':
         message, keyboard = _build_action_menu(group)
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-        return GROUP_ACTION
+
+    return ConversationHandler.END

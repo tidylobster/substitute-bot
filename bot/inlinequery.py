@@ -27,7 +27,7 @@ def _substitute(message, groups, draft=False):
 # ------------
 
 @database.atomic()
-def substitute_query(bot, update):
+def inline_mode(bot, update):
     results = []
     query = update.inline_query.query
 
