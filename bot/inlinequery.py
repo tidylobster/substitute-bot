@@ -52,7 +52,7 @@ def substitute_query(bot, update):
             id=group.id,
             title=f'@{group.name}',
             input_message_content=InputTextMessageContent(
-                f'{members}\n{query}'),
+                f'{query}\n{members}'),
             description=f'{members}\n{query}'))
 
     if not results and query:
