@@ -62,9 +62,15 @@ def inline_mode(bot, update):
 # ----------------------
 
 def check_every_message(bot, update):
+    if update.effective_message.chat_id == update.effective_message.from_user.id:
+        return None  # Don't check anything, if this is self-conversation
+
     user_groups = Group.select().where(Group.chat == update.effective_chat.id)
     translitted = translit(update.effective_message.text, 'ru', reversed=True)
     for group in user_groups:
-        if group.members and group.name[1:].lower() in translitted.lower():
-            members = ' '.join(member.alias for member in group.members)
-            update.effective_message.reply_text(f"Guys {group.name} ({members}), you have been mentioned.")
+        if group.name[1:].lower() in translitted.lower():
+            if group.members:
+                members = ' '.join(member.alias for member in group.members)
+                update.effective_message.reply_text(f"Guys {group.name} ({members}), you have been mentioned.")
+            else:
+                update.effective_message.reply_text(f"A group {group.name} was mentioned, but there are no members in it.")
