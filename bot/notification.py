@@ -31,7 +31,7 @@ def inline_mode(bot, update):
     results = []
     query = update.inline_query.query
 
-    if query:
+    if query and False:
         # Automatic substitution
         substitutions = []
         groups = Group.select().where(Group.chat == update.effective_user.id)
@@ -49,7 +49,7 @@ def inline_mode(bot, update):
     for group in Group.select().where(Group.chat == update.effective_user.id):
         members = ' '.join(member.alias for member in group.members).strip() or 'Empty group'
         results.append(InlineQueryResultArticle(id=group.id, title=f'{group.name}',
-            input_message_content=InputTextMessageContent(f'{query}\n{members}'), description=f'{members}'))
+            input_message_content=InputTextMessageContent(f'{query}\n\n{members}'), description=f'{members}'))
 
     if not results and query:
         return update.inline_query.answer([], is_personal=True,
