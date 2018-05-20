@@ -52,9 +52,8 @@ def inline_mode(bot, update):
             input_message_content=InputTextMessageContent(f'{query}\n{members}'), description=f'{members}'))
 
     if not results and query:
-        results.append(InlineQueryResultArticle(id=uuid4(), title="You don't have any existing group yet.",
-            input_message_content=InputTextMessageContent(query), description=query))
-        update.inline_query.answer(results, is_personal=True, switch_pm_text=True)
+        return update.inline_query.answer([], is_personal=True,
+            switch_pm_text='Create own groups', switch_pm_parameter='start')
 
     update.inline_query.answer(results, is_personal=True)
 
