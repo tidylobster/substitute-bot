@@ -326,7 +326,7 @@ def group_delete_complete(bot, update, user_data):
     action = update.callback_query.data.split('.')[-1]
 
     if action == 'yes':
-        group.delete_instance()
+        group.delete_instance(recursive=True)
         update.callback_query.answer('Group have been deleted')
         message, keyboard = _build_group_menu(update.effective_chat.id)
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))

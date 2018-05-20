@@ -26,5 +26,5 @@ class GroupUsers(BaseModel):
             (('group', 'alias'), True),
         )
 
-    group = ForeignKeyField(Group, backref='members')
+    group = ForeignKeyField(Group, backref='members', on_delete='CASCADE')
     alias = CharField()
