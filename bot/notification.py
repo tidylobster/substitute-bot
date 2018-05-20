@@ -7,20 +7,20 @@ from telegram import InlineQueryResultArticle, InputTextMessageContent
 
 from .models import database, Group, GroupUsers
 
-Substitution = namedtuple('Substitution', 'id name start end ')
+Substitution = namedtuple('Substitution', 'id name index')
 
 
 # Internal functions
 # ------------------
 
 def _substitute(message, groups, draft=False):
-    shift, new_msg = -1, message[:]
+    splitted, shift = message.split(), 1
     for sub in groups:
         group = Group.get_by_id(sub.id)
-        replacements = '( ... )' if draft else f'{" ".join(member.alias for member in group.members)}'
-        new_msg = f'{new_msg[:sub.start+shift]}{replacements}{new_msg[sub.end + shift:]}'
-        shift += len(replacements) - len(sub.name)
-    return new_msg
+        replacements = '( ... )' if draft else f'({" ".join(member.alias for member in group.members)})'
+        splitted.insert(sub.index + shift, replacements)
+        shift += 1
+    return ' '.join(splitted)
 
 
 # Inline Query
@@ -31,15 +31,17 @@ def inline_mode(bot, update):
     results = []
     query = update.inline_query.query
 
-    if query and False:
+    if query:
         # Automatic substitution
         substitutions = []
         groups = Group.select().where(Group.chat == update.effective_user.id)
-        translitted = translit(query, 'ru', reversed=True)
+        translitted = translit(query, reversed=True).lower().split()
+        cleaned = [re.sub(r'[^_a-z\d]', r'', item) for item in translitted]
 
         for group in groups:
-            groups = re.finditer(f'@?{group.name}', translitted, re.MULTILINE)
-            substitutions.extend(Substitution(group.id, group.name, item.start(0), item.end(0)) for item in groups)
+            for i, word in enumerate(cleaned):
+                if word == group.name[1:]:
+                    substitutions.append(Substitution(group.id, group.name, i))
 
         if substitutions:
             results.append(InlineQueryResultArticle(id=uuid4(), title="Auto",
