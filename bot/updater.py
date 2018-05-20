@@ -62,6 +62,10 @@ dispatcher.add_handler(ConversationHandler(
 dispatcher.add_handler(CommandHandler('groups', group_list))
 dispatcher.add_handler(CallbackQueryHandler(group_open, pattern='group.list.', pass_user_data=True))
 
+# joining/leaving the group
+dispatcher.add_handler(CallbackQueryHandler(group_join, pattern='group.join.'))
+dispatcher.add_handler(CallbackQueryHandler(group_leave, pattern='group.leave.'))
+
 # adding members
 dispatcher.add_handler(ConversationHandler(
     entry_points=[CallbackQueryHandler(group_add_members_enter, pattern='group.add.', pass_user_data=True)],
