@@ -16,9 +16,9 @@ dispatcher = updater.dispatcher
 
 def start(bot, update):
     update.effective_message.reply_text(
-        'Hello. I can /create groups for you and keep all your friends inside them. '
-        'You can call me anytime using inline mode via @substitute_bot and pick those groups '
-        'to be printed in your messages.')
+        f'Hello. I can /create groups for you and keep all your friends inside them. '
+        f'You can call me anytime using inline mode via {bot.name} and pick those groups '
+        f'to be printed in your messages.')
     update.effective_message.reply_text('Try now!')
 
 
