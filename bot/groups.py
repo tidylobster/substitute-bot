@@ -9,7 +9,7 @@ from transliterate.contrib import languages
 from peewee import IntegrityError
 from .models import database, Group, GroupUsers
 
-CREATE_GROUP, GROUP_ACTION, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE = range(6)
+CREATE_GROUP, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE = range(5)
 
 
 # Internal functions
@@ -181,7 +181,7 @@ def group_add_members_complete(bot, update, user_data):
 
     message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')))
     update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-    return GROUP_ACTION
+    return ConversationHandler.END
 
 
 # Removing members
