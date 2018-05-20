@@ -46,13 +46,15 @@ def _validate_alias(alias, use_alphabet=False):
     return True, None
 
 
-def _build_group_menu(user_id):
+def _build_group_menu(chat_id):
     keyboard = []
-    for group in Group.select().where(Group.user == user_id):
+    for group in Group.select().where(Group.chat == chat_id):
         keyboard.append([InlineKeyboardButton(
             text=f'{group.name} | {len(group.members)} member(s)',
             callback_data=f'group.list.{group.id}'
         )])
+    if not keyboard:
+        return "You don't have any created groups yet. Use /create command to create a group.", keyboard
     return 'Choose the group', keyboard
 
 
@@ -89,8 +91,8 @@ def _build_members_menu(group):
 
 @database.atomic()
 def group_create(bot, update):
-    # Checking, that user has not exceeded the limit.
-    groups = Group.select().where(Group.user == update.effective_message.from_user.id)
+    # Checking, that user/chat has not exceeded the limit.
+    groups = Group.select().where(Group.chat == update.effective_message.chat_id)
     if len(groups) > 10:
         update.effective_message.reply_text('You cannot have more that 10 groups.')
         return ConversationHandler.END
@@ -112,12 +114,13 @@ def group_create_complete(bot, update):
         group_name = _construct_group_name(update.effective_message.text)
         Group.create(
             user=update.effective_message.from_user.id,
+            chat=update.effective_message.chat_id,
             name=group_name)
         update.effective_message.reply_text('Saved. You can see all of your /groups if you like.')
+        return ConversationHandler.END
     except IntegrityError:  # Index fell down
         update.effective_message.reply_text('You have already created a group with that name.')
-    finally:
-        return ConversationHandler.END
+        return CREATE_GROUP
 
 
 # /groups command
@@ -125,11 +128,7 @@ def group_create_complete(bot, update):
 
 @database.atomic()
 def group_list(bot, update):
-    message, keyboard = _build_group_menu(update.effective_user.id)
-    if not keyboard:
-        update.effective_message.reply_text("You don't have any created groups yet. "
-                                            "Use /create command to create a group.")
-        return ConversationHandler.END
+    message, keyboard = _build_group_menu(update.effective_chat.id)
     update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
@@ -142,7 +141,7 @@ def group_open(bot, update, user_data):
 
 @database.atomic()
 def group_exit(bot, update):
-    message, keyboard = _build_group_menu(update.effective_user.id)
+    message, keyboard = _build_group_menu(update.effective_chat.id)
     update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
@@ -274,7 +273,7 @@ def group_delete_complete(bot, update, user_data):
     if action == 'yes':
         group.delete_instance()
         update.callback_query.answer('Group have been deleted')
-        message, keyboard = _build_group_menu(update.effective_user.id)
+        message, keyboard = _build_group_menu(update.effective_chat.id)
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
 
     if action == 'no':

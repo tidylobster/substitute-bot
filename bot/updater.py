@@ -4,7 +4,7 @@ from decouple import Config, RepositoryEnv
 from telegram.ext import *
 
 from .groups import *
-from .inlinequery import *
+from .notification import *
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ def error(bot, update, error):
     logger.warning('Update "%s" caused error "%s"', update, error)
 
 
-# defaults
+# default commands
 dispatcher.add_error_handler(error)
 dispatcher.add_handler(CommandHandler('start', start))
 dispatcher.add_handler(CommandHandler('help', help))
@@ -58,6 +58,7 @@ dispatcher.add_handler(ConversationHandler(
             MessageHandler(Filters.text, group_create_complete)]},
     fallbacks=[CommandHandler('cancel', cancel)]))
 
+# listing user's groups
 dispatcher.add_handler(CommandHandler('groups', group_list))
 dispatcher.add_handler(CallbackQueryHandler(group_open, pattern='group.list.', pass_user_data=True))
 
@@ -95,7 +96,11 @@ dispatcher.add_handler(ConversationHandler(
             CallbackQueryHandler(group_delete_complete, pass_user_data=True)]},
     fallbacks=[CommandHandler('cancel', cancel)], conversation_timeout=60))
 
+# exiting from the group
 dispatcher.add_handler(CallbackQueryHandler(group_exit, pattern='group.exit'))
+
+# checking every message for mentioned groups
+dispatcher.add_handler(MessageHandler(Filters.text, check_every_message))
 
 # unexpected callback_queryies
 dispatcher.add_handler(CallbackQueryHandler(expired_session))

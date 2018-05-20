@@ -12,10 +12,11 @@ class BaseModel(Model):
 class Group(BaseModel):
     class Meta:
         indexes = (
-            (('user', 'name'), True),
+            (('chat', 'name'), True),
         )
 
     user = IntegerField()
+    chat = IntegerField()
     name = CharField(max_length=32)
 
 
