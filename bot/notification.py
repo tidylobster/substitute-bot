@@ -6,6 +6,7 @@ from transliterate import translit
 from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 
+from bot.substitutegroup import substitute_groups
 from .models import database, Group, GroupUsers
 
 Substitution = namedtuple('Substitution', 'id name index')
@@ -23,7 +24,6 @@ def _substitute(message, groups, draft=False):
         shift += 1
     return ' '.join(splitted)
 
-
 # Inline Query
 # ------------
 
@@ -35,20 +35,11 @@ def inline_mode(bot, update):
     if query:
         # Automatic substitution
         try:
-            substitutions = []
             groups = Group.select().where(Group.chat == update.effective_user.id)
-            translitted = translit(query, reversed=True).lower().split()
-            cleaned = [re.sub(r'[^_a-z\d]', r'', item) for item in translitted]
 
-            for group in groups:
-                for i, word in enumerate(cleaned):
-                    if word == group.name[1:]:
-                        substitutions.append(Substitution(group.id, group.name, i))
-
-            if substitutions:
-                results.append(InlineQueryResultArticle(id=uuid4(), title="Auto",
-                    input_message_content=InputTextMessageContent(_substitute(query, substitutions)),
-                    description=_substitute(query, substitutions, draft=True)))
+            results.append(InlineQueryResultArticle(id=uuid4(), title="Auto",
+                    input_message_content=InputTextMessageContent(substitute_groups(query, groups)),
+                    description=substitute_groups(query, groups, draft=True)))
         except LanguageDetectionError:
             pass
 
