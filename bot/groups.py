@@ -164,7 +164,7 @@ def group_join(bot, update):
 
         message, keyboard = _build_action_menu(group, update)
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-        update.effective_message.reply_text(f"{update.callback_query.from_user.name} join the group {group.name}")
+        update.effective_message.reply_text(f"{update.callback_query.from_user.name} joined the group {group.name}", quote=False)
     except IntegrityError:
         update.callback_query.answer("You're already in that group.")
 
@@ -178,7 +178,7 @@ def group_leave(bot, update):
         ).execute()
         message, keyboard = _build_action_menu(group, update)
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-        update.effective_message.reply_text(f"{update.callback_query.from_user.name} left the group {group.name}")
+        update.effective_message.reply_text(f"{update.callback_query.from_user.name} left the group {group.name}", quote=False)
     except IntegrityError:
         update.callback_query.answer("Something wrong happened...")
 
