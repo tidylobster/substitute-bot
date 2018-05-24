@@ -1,5 +1,9 @@
+from transliterate import translit
+
+
 # Support functions for substitute groups
-# ----------
+# ---------------------------------------
+
 
 def substitute_groups(message, groups, draft=False):
     final_message = ""
@@ -37,14 +41,14 @@ def substitute_groups(message, groups, draft=False):
 def clear_group_name(group_name):
     return group_name.replace("@", "")
 
-# This shit is not working. Help me >_>
-def get_translitted(str, case_insansitive = True):
-    return  str
-    # tranlitted = translit(str, draft=True)
-    # if case_insansitive:
-    #     tranlitted = tranlitted.lower()
-    #
-    # return tranlitted
+
+def get_translitted(message, case_insansitive=True):
+    translitted = translit(message, reversed=True)
+    if case_insansitive:
+        translitted = translitted.lower()
+
+    return translitted
+
 
 def update_final_message(ch, final_message, groups, last, word, draft):
     overfit = False
@@ -79,4 +83,4 @@ def get_group_members_string(group, draft):
     if len(group.members) == 0:
         return group.name
 
-    return '{}({})'.format(group.name, '...' if draft else ' '.join(list(map(lambda x: x.alias, group.members))))
+    return '{} ({})'.format(group.name, '...' if draft else ' '.join(list(map(lambda x: x.alias, group.members))))
