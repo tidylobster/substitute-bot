@@ -74,7 +74,7 @@ def find_group(groups, word):
     return gr
 
 
-# I'm not sure, but maybe highlighting group name in here.
+# I'm not sure, but maybe highlighting group name is here.
 def get_group_members_string(group, draft):
     if len(group.members) == 0:
         return group.name
