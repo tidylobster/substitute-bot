@@ -53,11 +53,13 @@ def get_translitted(message, case_insansitive=True):
 def update_final_message(ch, final_message, groups, last, word, draft):
     overfit = False
     gr = find_group(groups, word)
+
     if gr != None:
+        clear_bold_group = group_bold_text(word)
         group_string = get_group_members_string(gr, draft)
         if len(gr.members) > 4:
             last.append(group_string)
-            final_message += word
+            final_message += clear_bold_group
             overfit = True
         else:
             final_message += group_string
@@ -74,13 +76,17 @@ def find_group(groups, word):
         name_cleared = clear_group_name(item.name)
         if name_cleared == group_tr:
             gr = item
-            continue
+            break
     return gr
 
 
 # I'm not sure, but maybe highlighting group name is here.
 def get_group_members_string(group, draft):
+    name_group = group_bold_text(group.name)
     if len(group.members) == 0:
-        return group.name
+        return name_group
 
-    return '{} ({})'.format(group.name, '...' if draft else ' '.join(list(map(lambda x: x.alias, group.members))))
+    return '{} ({})'.format(name_group, '...' if draft else ' '.join(list(map(lambda x: x.alias, group.members))))
+
+def group_bold_text(name):
+    return f'*{clear_group_name(name)}*'
