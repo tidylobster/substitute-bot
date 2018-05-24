@@ -39,7 +39,7 @@ def substitute_groups(message, groups, draft=False):
 
 # Removing @ from group name
 def clear_group_name(group_name):
-    return group_name.replace("@", "")
+    return group_name.replace("@", "").lower()
 
 
 def get_translitted(message, case_insansitive=True):
