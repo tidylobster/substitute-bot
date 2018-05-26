@@ -1,15 +1,11 @@
 # coding: utf-8
-import re
-from collections import namedtuple
 from uuid import uuid4
 from transliterate import translit
 from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 
-from .substitutegroup import substitute_groups
+from .substitutegroup import substitute_groups, clear_group_name
 from .models import database, Group, GroupUsers
-
-Substitution = namedtuple('Substitution', 'id name index')
 
 
 # Inline Query
@@ -21,10 +17,9 @@ def inline_mode(bot, update):
     query = update.inline_query.query
 
     if query:
-        # Automatic substitution
         try:
+            # Automatic substitution
             groups = Group.select().where(Group.chat == update.effective_user.id)
-
             results.append(InlineQueryResultArticle(id=uuid4(), title="Auto",
                 input_message_content=InputTextMessageContent(substitute_groups(query, groups)),
                 description=substitute_groups(query, groups, draft=True)))
@@ -53,7 +48,7 @@ def check_every_message(bot, update):
     user_groups = Group.select().where(Group.chat == update.effective_chat.id)
     translitted = translit(update.effective_message.text, 'ru', reversed=True)
     for group in user_groups:
-        if group.name[1:].lower() in translitted.lower():
+        if clear_group_name(group.name) in translitted.lower():
             if group.members:
                 members = ' '.join(member.alias for member in group.members)
                 update.effective_message.reply_text(f"Guys {group.name} ({members}), you have been mentioned.")
