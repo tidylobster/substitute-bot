@@ -54,6 +54,6 @@ def check_every_message(bot, update):
             edited_group_name = group_bold_text(group.name)
             if group.members:
                 members = ' '.join(member.alias for member in group.members)
-                update.effective_message.reply_text(f"Guys {edited_group_name} ({members}), you have been mentioned.")
+                update.effective_message.reply_text(f"Guys {edited_group_name} ({members}), you have been mentioned.", parse_mode=ParseMode.MARKDOWN)
             else:
-                update.effective_message.reply_text(f"A group {edited_group_name} was mentioned, but there are no members in it.")
+                update.effective_message.reply_text(f"A group {edited_group_name} was mentioned, but there are no members in it.", parse_mode=ParseMode.MARKDOWN)
