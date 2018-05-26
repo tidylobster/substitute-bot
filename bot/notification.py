@@ -6,7 +6,7 @@ from transliterate import translit
 from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 
-from .substitutegroup import substitute_groups, clear_group_name
+from .substitutegroup import substitute_groups, clear_group_name, group_bold_text
 from .models import database, Group, GroupUsers
 
 
