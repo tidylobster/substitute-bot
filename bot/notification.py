@@ -6,7 +6,7 @@ from transliterate import translit
 from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 
-from .substitutegroup import substitute_groups, clear_group_name, group_bold_text
+from .substitutegroup import *
 from .models import database, Group, GroupUsers
 
 
@@ -53,7 +53,6 @@ def check_every_message(bot, update):
         if clear_group_name(group.name) in translitted.lower():
             edited_group_name = group_bold_text(group.name)
             if group.members:
-                members = ' '.join(member.alias for member in group.members)
-                update.effective_message.reply_text(f"Guys {edited_group_name} ({members}), you have been mentioned.", parse_mode=ParseMode.MARKDOWN)
+                update.effective_message.reply_text(f"Guys {get_group_members_string(group)}, you have been mentioned.", parse_mode=ParseMode.MARKDOWN)
             else:
                 update.effective_message.reply_text(f"A group {edited_group_name} was mentioned, but there are no members in it.", parse_mode=ParseMode.MARKDOWN)

@@ -1,4 +1,5 @@
 from transliterate import translit
+from telegram.utils.helpers import escape_markdown
 
 
 # Support functions for substitute groups
@@ -69,7 +70,7 @@ def update_final_message(ch, final_message, groups, last, word, draft):
     return final_message, overfit
 
 
-def find_group(groups, word):
+def find_group(groups, word: str):
     group_tr = get_translitted(word, False)
     gr = None
     for item in groups:
@@ -80,13 +81,12 @@ def find_group(groups, word):
     return gr
 
 
-# I'm not sure, but maybe highlighting group name is here.
-def get_group_members_string(group, draft):
+def get_group_members_string(group, draft: bool = False):
     name_group = group_bold_text(group.name)
     if len(group.members) == 0:
         return name_group
+    return '{} ({})'.format(name_group, '...' if draft else escape_markdown(' '.join(map(lambda x: x.alias, group.members))))
 
-    return '{} ({})'.format(name_group, '...' if draft else ' '.join(list(map(lambda x: x.alias, group.members))))
 
 def group_bold_text(name):
     return f'*{clear_group_name(name)}*'
