@@ -1,6 +1,5 @@
 # coding: utf-8
 import re
-import string
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 from telegram.utils.helpers import escape_markdown
@@ -8,9 +7,10 @@ from transliterate import translit
 from transliterate.exceptions import LanguageDetectionError
 from peewee import IntegrityError
 from .models import database, Group, GroupUsers
+from decouple import Config, RepositoryEnv
 
 CREATE_GROUP, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE = range(5)
-
+config = Config(RepositoryEnv('config.env'))
 
 # Internal functions
 # ------------------
@@ -24,6 +24,7 @@ def _construct_alphabet():
 
 def _construct_group_name(group_name):
     group_name = f'@{group_name}' if not group_name.startswith('@') else group_name
+
     try:
         group_name = translit(group_name, reversed=True)
     except LanguageDetectionError:
@@ -105,8 +106,8 @@ def _build_members_menu(group):
 def group_create(bot, update):
     # Checking, that user/chat has not exceeded the limit.
     groups = Group.select().where(Group.chat == update.effective_message.chat_id)
-    if len(groups) > 10:
-        update.effective_message.reply_text('You cannot have more that 10 groups.')
+    if len(groups) > config('GROUPS_LIMIT', cast=int):
+        update.effective_message.reply_text(f'You cannot have more that {config("GROUPS_LIMIT", cast=int)} groups.')
         return ConversationHandler.END
 
     update.effective_message.reply_text('Ok, send the name of the group. /cancel')
@@ -165,6 +166,8 @@ def group_exit(bot, update):
 def group_join(bot, update):
     try:
         group = Group.get_by_id(int(update.callback_query.data.split('.')[-1]))
+        if len(group.members) >= config("GROUP_MEMBERS_LIMIT", cast=int):
+            return update.callback_query.answer("Maximum amount of members in the group.")
         GroupUsers.create(group=group, alias=update.callback_query.from_user.name)
 
         message, keyboard = _build_action_menu(group, update)
@@ -176,16 +179,13 @@ def group_join(bot, update):
 
 @database.atomic()
 def group_leave(bot, update):
-    try:
-        group = Group.get_by_id(int(update.callback_query.data.split('.')[-1]))
-        GroupUsers.delete().where(
-            (GroupUsers.group == group) & (GroupUsers.alias == update.callback_query.from_user.name)
-        ).execute()
-        message, keyboard = _build_action_menu(group, update)
-        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-        update.effective_message.reply_text(f"{update.callback_query.from_user.name} left the group {group.name}", quote=False)
-    except IntegrityError:
-        update.callback_query.answer("Something wrong happened...")
+    group = Group.get_by_id(int(update.callback_query.data.split('.')[-1]))
+    GroupUsers.delete().where(
+        (GroupUsers.group == group) & (GroupUsers.alias == update.callback_query.from_user.name)
+    ).execute()
+    message, keyboard = _build_action_menu(group, update)
+    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    update.effective_message.reply_text(f"{update.callback_query.from_user.name} left the group {group.name}", quote=False)
 
 
 @database.atomic()
@@ -194,6 +194,9 @@ def group_add_members_enter(bot, update, user_data):
     group = Group.get_by_id(user_data.get('effective_group'))
     if group.user != update.callback_query.from_user.id:
         update.callback_query.answer('You are not allowed to add new members.')
+        return ConversationHandler.END
+    if len(group.members) >= config('GROUP_MEMBERS_LIMIT', cast=int):
+        update.callback_query.answer(f'You can only have up to {config("GROUP_MEMBERS_LIMIT", cast=int)} users in the group.')
         return ConversationHandler.END
 
     update.callback_query.answer()
@@ -215,11 +218,18 @@ def group_add_members(bot, update, user_data):
             alias = alias if '@' in alias else f'@{alias}'
             GroupUsers.create(group=group, alias=alias)
             update.effective_message.reply_text(f'Added `{escape_markdown(alias)}`', parse_mode=ParseMode.MARKDOWN)
+            if len(group.members) >= config('GROUP_MEMBERS_LIMIT', cast=int):
+                message, keyboard = _build_action_menu(group, update)
+                update.effective_message.reply_text(f'Maximum amount of members reached.')
+                update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+                return ConversationHandler.END
+
     except IntegrityError:
-        update.effective_message.reply_text(f'You already added `{escape_markdown(alias)}` to the group',
-                                            parse_mode=ParseMode.MARKDOWN)
-    finally:
-        return GROUP_ADD_MEMBERS
+        update.effective_message.reply_text(
+            f'You have already added `{escape_markdown(alias)}` to the group',
+            parse_mode=ParseMode.MARKDOWN)
+
+    return GROUP_ADD_MEMBERS
 
 
 @database.atomic()
@@ -242,7 +252,7 @@ def group_remove_enter(bot, update, user_data):
         update.callback_query.answer('You are not allowed to remove members.')
         return ConversationHandler.END
     if not group.members:
-        update.callback_query.answer("There isn't any member in this group.")
+        update.callback_query.answer("There aren't any members in the group.")
         return ConversationHandler.END
 
     _, keyboard = _build_members_menu(Group.get_by_id(user_data.get('effective_group')))
@@ -289,7 +299,7 @@ def group_rename_enter(bot, update, user_data):
 def group_rename_complete(bot, update, user_data):
     validated, message = _validate_alias(update.effective_message.text, use_alphabet=True)
     if not validated:
-        update.effective_message.reply_text(f'Sorry, invalid group. {message}')
+        update.effective_message.reply_text(f'Sorry, invalid group name. {message}')
         return GROUP_RENAME
 
     group = Group.get_by_id(user_data.get('effective_group'))
