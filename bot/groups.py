@@ -1,9 +1,11 @@
 # coding: utf-8
 import re
 import string
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
+from telegram.utils.helpers import escape_markdown
 from transliterate import translit
+from transliterate.exceptions import LanguageDetectionError
 from peewee import IntegrityError
 from .models import database, Group, GroupUsers
 
@@ -22,9 +24,10 @@ def _construct_alphabet():
 
 def _construct_group_name(group_name):
     group_name = f'@{group_name}' if not group_name.startswith('@') else group_name
-    alphabet = string.ascii_letters + string.digits + '@_'
-    if not all(map(lambda x: x in alphabet, group_name)):
+    try:
         group_name = translit(group_name, reversed=True)
+    except LanguageDetectionError:
+        pass
     return group_name
 
 
@@ -209,9 +212,10 @@ def group_add_members(bot, update, user_data):
         else:
             alias = alias if '@' in alias else f'@{alias}'
             GroupUsers.create(group=group, alias=alias)
-            update.effective_message.reply_text(f'Added {alias}')
+            update.effective_message.reply_text(f'Added `{escape_markdown(alias)}`', parse_mode=ParseMode.MARKDOWN)
     except IntegrityError:
-        update.effective_message.reply_text(f'You already added {update.effective_message.text} to the group')
+        update.effective_message.reply_text(f'You already added `{escape_markdown(alias)}` to the group',
+                                            parse_mode=ParseMode.MARKDOWN)
     finally:
         return GROUP_ADD_MEMBERS
 

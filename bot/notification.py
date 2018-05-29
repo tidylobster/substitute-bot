@@ -2,8 +2,6 @@
 from uuid import uuid4
 
 from telegram import ParseMode
-from transliterate import translit
-from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 
 from .substitutegroup import *
@@ -15,25 +13,23 @@ from .models import database, Group, GroupUsers
 
 @database.atomic()
 def inline_mode(bot, update):
-    results = []
+    results, auto_triggered = [], False
     query = update.inline_query.query
 
     if query:
-        try:
-            # Automatic substitution
-            groups = Group.select().where(Group.chat == update.effective_user.id)
-            results.append(InlineQueryResultArticle(id=uuid4(), title="Auto",
-                input_message_content=InputTextMessageContent(substitute_groups(query, groups),parse_mode=ParseMode.MARKDOWN),
-                description=substitute_groups(query, groups, draft=True)))
-        except LanguageDetectionError:
-            pass
+        auto_triggered = True  # Automatic substitution was triggered
+        groups = Group.select().where(Group.chat == update.effective_user.id)
+        results.append(InlineQueryResultArticle(id=uuid4(), title="Auto",
+            input_message_content=InputTextMessageContent(substitute_groups(query, groups),parse_mode=ParseMode.MARKDOWN),
+            description=substitute_groups(query, groups, draft=True)))
+
 
     for group in Group.select().where(Group.chat == update.effective_user.id):
         members = ' '.join(member.alias for member in group.members).strip() or 'Empty group'
         results.append(InlineQueryResultArticle(id=group.id, title=f'{group.name}',
-            input_message_content=InputTextMessageContent(f'{query}\n\n{members}', parse_mode=ParseMode.MARKDOWN), description=f'{members}'))
+            input_message_content=InputTextMessageContent(f'{query}\n\n{escape_markdown(members)}', parse_mode=ParseMode.MARKDOWN), description=f'{members}'))
 
-    if not results and query:
+    if not results and query or len(results) == 1 and auto_triggered:
         return update.inline_query.answer([], is_personal=True,
             switch_pm_text='Create own groups', switch_pm_parameter='start')
 
@@ -48,7 +44,11 @@ def check_every_message(bot, update):
         return None  # Don't check anything, if this is self-conversation
 
     user_groups = Group.select().where(Group.chat == update.effective_chat.id)
-    translitted = translit(update.effective_message.text, 'ru', reversed=True)
+    try:
+        translitted = translit(update.effective_message.text, 'ru', reversed=True)
+    except LanguageDetectionError:
+        translitted = update.effective_message.text
+
     for group in user_groups:
         if clear_group_name(group.name) in translitted.lower():
             edited_group_name = group_bold_text(group.name)

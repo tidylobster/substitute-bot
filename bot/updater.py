@@ -28,13 +28,16 @@ def start(bot, update):
         f'Hello. I can /create groups for you and keep all your friends inside them. '
         f'You can call me anytime using inline mode via {bot.name} and pick those groups '
         f'to be printed in your messages.')
-    update.effective_message.reply_text('Try now!')
 
 
 def help(bot, update):
-    update.effective_message.reply_text(
-        '/create - create a new group\n'
-        '/groups - list of all of your groups')
+    message = 'List of commands I am serving right now:\n'
+    message += '/create - create a new group\n'
+    if update.effective_user.id == update.effective_chat.id:
+        message += '/groups - list of all of your groups'
+    else:
+        message += '/groups - list of all of chat groups'
+    update.effective_message.reply_text(message)
 
 
 def expired_session(bot, update):
