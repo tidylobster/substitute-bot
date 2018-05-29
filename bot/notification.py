@@ -2,12 +2,11 @@
 from uuid import uuid4
 
 from telegram import ParseMode
-from transliterate import translit
 from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 
 from .substitutegroup import *
-from .models import database, Group, GroupUsers
+from .models import database, Group
 
 
 # Inline Query
