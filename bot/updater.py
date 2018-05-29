@@ -10,12 +10,16 @@ config = Config(RepositoryEnv('config.env'))
 updater = Updater(token=config('TOKEN'))
 dispatcher = updater.dispatcher
 
-if config('DEBUG', cast=bool):
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+if not config('DEBUG', cast=bool):
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        filename=f'{updater.bot.name.lower()[1:]}.log',
+        filemode='a+')
 else:
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO,
-                        filename=f'{updater.bot.name.lower()[1:]}.log', filemode='a+')
-
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -24,13 +28,16 @@ def start(bot, update):
         f'Hello. I can /create groups for you and keep all your friends inside them. '
         f'You can call me anytime using inline mode via {bot.name} and pick those groups '
         f'to be printed in your messages.')
-    update.effective_message.reply_text('Try now!')
 
 
 def help(bot, update):
-    update.effective_message.reply_text(
-        '/create - create a new group\n'
-        '/groups - list of all of your groups')
+    message = 'List of commands I am serving right now:\n'
+    message += '/create - create a new group\n'
+    if update.effective_user.id == update.effective_chat.id:
+        message += '/groups - list of all of your groups'
+    else:
+        message += '/groups - list of all of chat groups'
+    update.effective_message.reply_text(message)
 
 
 def expired_session(bot, update):

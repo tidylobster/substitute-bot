@@ -1,4 +1,5 @@
 from transliterate import translit
+from transliterate.exceptions import LanguageDetectionError
 from telegram.utils.helpers import escape_markdown
 
 
@@ -44,10 +45,13 @@ def clear_group_name(group_name):
 
 
 def get_translitted(message, case_insansitive=True):
-    translitted = translit(message, reversed=True)
+    try:
+        translitted = translit(message, reversed=True)
+    except LanguageDetectionError:
+        translitted = message
+
     if case_insansitive:
         translitted = translitted.lower()
-
     return translitted
 
 
@@ -55,7 +59,7 @@ def update_final_message(ch, final_message, groups, last, word, draft):
     overfit = False
     gr = find_group(groups, word)
 
-    if gr != None:
+    if gr is not None:
         clear_bold_group = group_bold_text(word)
         group_string = get_group_members_string(gr, draft)
         if len(gr.members) > 4:
