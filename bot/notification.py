@@ -20,21 +20,36 @@ def inline_mode(bot, update):
     if query:
         auto_triggered = True  # Automatic substitution was triggered
         groups = Group.select().where(Group.chat == update.effective_user.id)
-        results.append(InlineQueryResultArticle(id=uuid4(), title="Auto",
-            input_message_content=InputTextMessageContent(substitute_groups(query, groups),parse_mode=ParseMode.MARKDOWN),
+        results.append(InlineQueryResultArticle(
+            id=uuid4(),
+            title="Auto",
+            input_message_content=InputTextMessageContent(substitute_groups(query, groups), parse_mode=ParseMode.MARKDOWN),
             description=substitute_groups(query, groups, draft=True)))
 
-
-    for group in Group.select().where(Group.chat == update.effective_user.id):
+    for group in Group.select().where(Group.chat == update.effective_user.id).order_by(Group.usage.desc()):
         members = ' '.join(member.alias for member in group.members).strip() or 'Empty group'
-        results.append(InlineQueryResultArticle(id=group.id, title=f'{group.name}',
-            input_message_content=InputTextMessageContent(f'{query}\n\n{escape_markdown(members)}', parse_mode=ParseMode.MARKDOWN), description=f'{members}'))
+        results.append(InlineQueryResultArticle(
+            id=group.id,
+            title=f'{group.name}',
+            input_message_content=InputTextMessageContent(f'{query}\n\n{escape_markdown(members)}', parse_mode=ParseMode.MARKDOWN),
+            description=f'{members}'))
 
     if not results and query or len(results) == 1 and auto_triggered:
         return update.inline_query.answer([], is_personal=True,
             switch_pm_text='Create own groups', switch_pm_parameter='start')
 
     update.inline_query.answer(results, is_personal=True)
+
+
+@database.atomic()
+def inline_chosen(bot, update):
+    try:
+        q = (Group
+             .update({Group.usage: Group.usage + 1})
+             .where(Group.id == int(update.chosen_inline_result.result_id)))
+        q.execute()
+    except ValueError:
+        pass  # int() get uuid4 string -> do nothing
 
 
 # Checking every message

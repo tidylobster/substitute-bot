@@ -60,21 +60,22 @@ def _build_group_menu(chat_id):
 
 
 def _build_action_menu(group, update):
+    keyboard = []
     if group.user == update.effective_user.id:  # if creator
         message = f'Choose an action for {group.name} group.'
-        keyboard = [[InlineKeyboardButton('Add members', callback_data=f'group.add.{group.id}'),
-                     InlineKeyboardButton('Remove members', callback_data=f'group.remove.{group.id}')],
-                    [InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
-                     InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')],
-                    [InlineKeyboardButton('← Back', callback_data=f'group.exit')]]
+        keyboard.extend([[InlineKeyboardButton('Add members', callback_data=f'group.add.{group.id}'),
+                          InlineKeyboardButton('Remove members', callback_data=f'group.remove.{group.id}')],
+                         [InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
+                          InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')]])
     else:
         message = f'The {group.name} group.'
-        if GroupUsers.select().where((GroupUsers.group == group) & (GroupUsers.alias == update.effective_user.name)).first():
-            keyboard = [[InlineKeyboardButton('← Back', callback_data=f'group.exit'),
-                         InlineKeyboardButton('Leave group', callback_data=f'group.leave.{group.id}')]]
-        else:
-            keyboard = [[InlineKeyboardButton('← Back', callback_data=f'group.exit'),
-                         InlineKeyboardButton('Join group', callback_data=f'group.join.{group.id}')]]
+
+    if GroupUsers.select().where((GroupUsers.group == group) & (GroupUsers.alias == update.effective_user.name)).first():
+        keyboard.extend([[InlineKeyboardButton('← Back', callback_data=f'group.exit'),
+                          InlineKeyboardButton('Leave group', callback_data=f'group.leave.{group.id}')]])
+    else:
+        keyboard.extend([[InlineKeyboardButton('← Back', callback_data=f'group.exit'),
+                          InlineKeyboardButton('Join group', callback_data=f'group.join.{group.id}')]])
 
     if group.members:
         message = f'{message}\n\nMembers:'
@@ -123,10 +124,11 @@ def group_create_complete(bot, update):
 
     try:
         group_name = _construct_group_name(update.effective_message.text)
-        Group.create(
+        group = Group.create(
             user=update.effective_message.from_user.id,
             chat=update.effective_message.chat_id,
             name=group_name)
+        GroupUsers.create(group=group, alias=update.effective_user.name)
         update.effective_message.reply_text('Saved. You can see all of your /groups if you like.')
         return ConversationHandler.END
     except IntegrityError:  # Index fell down

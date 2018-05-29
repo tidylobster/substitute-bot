@@ -18,6 +18,7 @@ class Group(BaseModel):
     user = IntegerField()
     chat = IntegerField()
     name = CharField(max_length=32)
+    usage = IntegerField(default=0)
 
 
 class GroupUsers(BaseModel):

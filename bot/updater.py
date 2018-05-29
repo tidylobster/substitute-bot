@@ -61,6 +61,7 @@ dispatcher.add_handler(CommandHandler('help', help))
 
 # inline mode
 dispatcher.add_handler(InlineQueryHandler(inline_mode))
+dispatcher.add_handler(ChosenInlineResultHandler(inline_chosen))
 
 # creating groups
 dispatcher.add_handler(ConversationHandler(
