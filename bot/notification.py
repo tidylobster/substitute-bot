@@ -48,8 +48,11 @@ def check_every_message(bot, update):
 
     user_groups = Group.select().where(Group.chat == update.effective_chat.id)
     translitted = translit(update.effective_message.text, 'ru', reversed=True)
+
+    mentioned = []
     for group in user_groups:
-        if clear_group_name(group.name) in translitted.lower():
+        if clear_group_name(group.name) in translitted.lower() and group.id not in mentioned:
+            mentioned.append(group.id)
             edited_group_name = group_bold_text(group.name)
             if group.members:
                 update.effective_message.reply_text(f"Guys {get_group_members_string(group)}, you have been mentioned.", parse_mode=ParseMode.MARKDOWN)

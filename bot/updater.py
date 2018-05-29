@@ -10,8 +10,12 @@ config = Config(RepositoryEnv('config.env'))
 updater = Updater(token=config('TOKEN'))
 dispatcher = updater.dispatcher
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO,
-                    filename=f'{updater.bot.name.lower()[1:]}.log', filemode='a+')
+if config('DEBUG', cast=bool):
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+else:
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO,
+                        filename=f'{updater.bot.name.lower()[1:]}.log', filemode='a+')
+
 logger = logging.getLogger(__name__)
 
 
