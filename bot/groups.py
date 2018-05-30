@@ -101,8 +101,8 @@ def _build_members_menu(group):
 def group_create(bot, update):
     # Checking, that user/chat has not exceeded the limit.
     groups = Group.select().where(Group.chat == update.effective_message.chat_id)
-    if len(groups) > config('GROUPS_LIMIT', cast=int):
-        update.effective_message.reply_text(f'You cannot have more that {config("GROUPS_LIMIT", cast=int)} groups.')
+    if len(groups) > config('GROUP_LIMIT', cast=int):
+        update.effective_message.reply_text(f'You cannot have more that {config("GROUP_LIMIT", cast=int)} groups.')
         return ConversationHandler.END
 
     update.effective_message.reply_text('Ok, send the name of the group. /cancel')

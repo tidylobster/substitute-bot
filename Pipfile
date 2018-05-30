@@ -9,6 +9,7 @@ python-decouple = "*"
 peewee = "*"
 transliterate = "*"
 pyrogram = "*"
+tgcrypto = "*"
 
 [dev-packages]
 

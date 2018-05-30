@@ -63,6 +63,9 @@ dispatcher.add_handler(CommandHandler('help', help))
 dispatcher.add_handler(InlineQueryHandler(inline_mode))
 dispatcher.add_handler(ChosenInlineResultHandler(inline_chosen))
 
+# mention all members
+dispatcher.add_handler(CommandHandler('all', mention_all, pass_chat_data=True))
+
 # creating groups
 dispatcher.add_handler(ConversationHandler(
     entry_points=[CommandHandler('create', group_create)],

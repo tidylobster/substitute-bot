@@ -1,12 +1,16 @@
 # coding: utf-8
+import datetime
 from uuid import uuid4
 
 from telegram import ParseMode
 from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
+from pyrogram.api import functions
 
+from .updater import config
 from .substitutegroup import *
 from .models import database, Group
+from .utils import client_wrapper
 
 
 # Inline Query
@@ -73,3 +77,35 @@ def check_every_message(bot, update):
                 update.effective_message.reply_text(f"Guys {get_group_members_string(group)}, you have been mentioned.", parse_mode=ParseMode.MARKDOWN)
             else:
                 update.effective_message.reply_text(f"A group {group_bold_text(group.name)} was mentioned, but there are no members in it.", parse_mode=ParseMode.MARKDOWN)
+
+
+@client_wrapper
+@database.atomic()
+def mention_all(bot, update, app, chat_data):
+    """ Mentioning all members in the chat """
+    if not update.effective_chat.type == 'group':
+        return update.effective_message.reply_text('Sorry, I only work with groups, not supergroups or channels.', quote=False)
+    if chat_data.get('last_call'):
+        minutes = config('GROUP_MENTION_ALL_TIME', cast=int)
+        if datetime.datetime.now() - chat_data.get('last_call') < datetime.timedelta(minutes=minutes):
+            difference = datetime.timedelta(minutes=minutes) - (datetime.datetime.now() - chat_data.get('last_call'))
+            return update.effective_message.reply_text(
+                f"/all can be called again in {int(difference.total_seconds())} seconds.", quote=False)
+
+    full_chat = app.send(functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
+    message, members, limit = '', [], config('GROUP_MENTION_ALL_LIMIT', cast=int)
+    for user in full_chat.users:
+        if limit == 0:
+            messsage = f"Sorry, I am restricted to show only up to " \
+                       f"{config('GROUP_MENTION_ALL_LIMIT', cast=int)} members in the group."
+            break
+        if user.bot:
+            continue
+
+        members.append(f'@{user.username}')
+        limit -= 1
+
+    chat_data.update({'last_call': datetime.datetime.now()})
+    update.effective_message.reply_text(' '.join(members), quote=False)
+    if messsage:
+        update.effective_message.reply_text(messsage, quote=False)
