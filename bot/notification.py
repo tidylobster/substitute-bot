@@ -31,7 +31,7 @@ def inline_mode(bot, update):
         results.append(InlineQueryResultArticle(
             id=group.id,
             title=f'{group.name}',
-            input_message_content=InputTextMessageContent(f'{query}\n\n{escape_markdown(members)}', parse_mode=ParseMode.MARKDOWN),
+            input_message_content=InputTextMessageContent(f'{query}\n\n{group_bold_text(group.name)} ({escape_markdown(members)})', parse_mode=ParseMode.MARKDOWN),
             description=f'{members}'))
 
     if not results and query or len(results) == 1 and auto_triggered:
