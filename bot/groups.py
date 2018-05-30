@@ -171,7 +171,7 @@ def group_join(bot, update):
         kwargs = _build_action_menu(group, update)
         update.effective_message.edit_text(**kwargs)
         update.effective_message.reply_text(
-            f"{update.callback_query.from_user.name} joined the group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
+            f"{update.callback_query.from_user.name} joined group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
     except IntegrityError:
         update.callback_query.answer("You're already in that group.")
 
@@ -186,7 +186,7 @@ def group_leave(bot, update):
     kwargs = _build_action_menu(group, update)
     update.effective_message.edit_text(**kwargs)
     update.effective_message.reply_text(
-        f"{update.callback_query.from_user.name} left the group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
+        f"{update.callback_query.from_user.name} left group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
 
 
 @database.atomic()
