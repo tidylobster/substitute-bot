@@ -16,17 +16,18 @@ def substitute_groups(message, groups, draft=False):
         if ch.isalpha():
             word += ch
         elif len(word) > 0:
-            final_message, is_tail = update_final_message(ch, final_message, groups, last, word, draft)
+            final_message, is_tail = update_final_message(final_message, groups, last, word, draft)
             if is_tail and not overfit:
                 overfit = is_tail
 
+            final_message += ch
             word = ""
         else:
             final_message += ch
             word = ""
 
     if len(word) > 0:
-        final_message, is_tail = update_final_message("", final_message, groups, last, word, draft)
+        final_message, is_tail = update_final_message(final_message, groups, last, word, draft)
         if is_tail and not overfit:
             overfit = is_tail
 
@@ -50,7 +51,7 @@ def get_translitted(message, case_insansitive=True):
     return translitted
 
 
-def update_final_message(ch, final_message, groups, last, word, draft):
+def update_final_message(final_message, groups, last, word, draft):
     overfit = False
     gr = find_group(groups, word)
 
@@ -65,7 +66,7 @@ def update_final_message(ch, final_message, groups, last, word, draft):
             final_message += group_string
     else:
         final_message += word
-    final_message += ch
+
     return final_message, overfit
 
 
