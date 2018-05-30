@@ -39,11 +39,6 @@ def substitute_groups(message, groups, draft=False):
     return final_message
 
 
-# Removing @ from group name
-def clear_group_name(group_name):
-    return group_name.replace("@", "").lower()
-
-
 def get_translitted(message, case_insansitive=True):
     try:
         translitted = translit(message, reversed=True)
@@ -78,8 +73,7 @@ def find_group(groups, word: str):
     group_tr = get_translitted(word, False)
     gr = None
     for item in groups:
-        name_cleared = clear_group_name(item.name)
-        if name_cleared == group_tr:
+        if item.name == group_tr:
             gr = item
             break
     return gr
@@ -93,4 +87,4 @@ def get_group_members_string(group, draft: bool = False):
 
 
 def group_bold_text(name):
-    return f'*{clear_group_name(name)}*'
+    return f'*{name}*'

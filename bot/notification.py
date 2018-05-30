@@ -67,10 +67,9 @@ def check_every_message(bot, update):
 
     mentioned = []
     for group in user_groups:
-        if clear_group_name(group.name) in translitted.lower() and group.id not in mentioned:
+        if group.name in translitted.lower() and group.id not in mentioned:
             mentioned.append(group.id)
-            edited_group_name = group_bold_text(group.name)
             if group.members:
                 update.effective_message.reply_text(f"Guys {get_group_members_string(group)}, you have been mentioned.", parse_mode=ParseMode.MARKDOWN)
             else:
-                update.effective_message.reply_text(f"A group {edited_group_name} was mentioned, but there are no members in it.", parse_mode=ParseMode.MARKDOWN)
+                update.effective_message.reply_text(f"A group {group_bold_text(group.name)} was mentioned, but there are no members in it.", parse_mode=ParseMode.MARKDOWN)

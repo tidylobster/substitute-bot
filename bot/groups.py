@@ -1,13 +1,13 @@
 # coding: utf-8
 import re
+from decouple import Config, RepositoryEnv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 from telegram.utils.helpers import escape_markdown
-from transliterate import translit
-from transliterate.exceptions import LanguageDetectionError
 from peewee import IntegrityError
+
 from .models import database, Group, GroupUsers
-from decouple import Config, RepositoryEnv
+from .substitutegroup import group_bold_text
 
 CREATE_GROUP, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE = range(5)
 config = Config(RepositoryEnv('config.env'))
@@ -22,28 +22,19 @@ def _construct_alphabet():
            'ћυLиЙμΑЂქΝԲՀВևqφЛhΟσмТնցՊCRјҮՔРJcξՕΙnΓдГvmуტA'
 
 
-def _construct_group_name(group_name):
-    group_name = f'@{group_name}' if not group_name.startswith('@') else group_name
-
-    try:
-        group_name = translit(group_name, reversed=True)
-    except LanguageDetectionError:
-        pass
-    return group_name
-
-
-def _validate_alias(alias, use_alphabet=False):
+def _validate_alias(alias, use_at=True, use_alphabet=False):
     if len(alias.split(' ')) > 1:
         return False, 'Multiple usernames sent all at once. Try to send them one by one.'
-    if len(re.findall('@', alias)) > 1:
+    if use_at and len(re.findall('@', alias)) > 1:
         return False, 'Too many @ symbols.'
-    if '@' in alias and not alias.startswith('@'):
+    if use_at and '@' in alias and not alias.startswith('@'):
         return False, 'Username should start with @.'
-    if not 4 < len(alias) < 33 or '@' in alias and not 5 < len(alias) < 34:
+    if not 4 < len(alias) < 33 or use_at and '@' in alias and not 5 < len(alias) < 34:
         return False, 'Length of the username must be 5-32 symbols.'
 
     alphabet = _construct_alphabet() if use_alphabet else ''
-    if len(re.findall(f'[^@_a-zA-Z{alphabet}\d]+', alias)):
+    symbols = '@_' if use_at else '_'
+    if len(re.findall(f'[^{symbols}a-zA-Z{alphabet}\d]+', alias)):
         return False, 'Invalid symbols in the username.'
     return True, None
 
@@ -63,13 +54,13 @@ def _build_group_menu(chat_id):
 def _build_action_menu(group, update):
     keyboard = []
     if group.user == update.effective_user.id:  # if creator
-        message = f'Choose an action for {group.name} group.'
+        message = f'Choose an action for {group_bold_text(group.name)} group.'
         keyboard.extend([[InlineKeyboardButton('Add members', callback_data=f'group.add.{group.id}'),
                           InlineKeyboardButton('Remove members', callback_data=f'group.remove.{group.id}')],
                          [InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
                           InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')]])
     else:
-        message = f'The {group.name} group.'
+        message = f'The {group_bold_text(group.name)} group.'
 
     if GroupUsers.select().where((GroupUsers.group == group) & (GroupUsers.alias == update.effective_user.name)).first():
         keyboard.extend([[InlineKeyboardButton('← Back', callback_data=f'group.exit'),
@@ -84,7 +75,11 @@ def _build_action_menu(group, update):
             message = f'{message}\n- {member.alias[1:]}'
     else:
         message = f'{message}\n\n No members yet.'
-    return message, keyboard
+
+    return {
+        'text': message,
+        'reply_markup': InlineKeyboardMarkup(keyboard),
+        'parse_mode': ParseMode.MARKDOWN}
 
 
 def _build_members_menu(group):
@@ -117,14 +112,14 @@ def group_create(bot, update):
 @database.atomic()
 def group_create_complete(bot, update):
     # Check, if group name has more tha 32 letters
-    validated, message = _validate_alias(update.effective_message.text, use_alphabet=True)
+    validated, message = _validate_alias(update.effective_message.text, use_at=False, use_alphabet=True)
 
     if not validated:
         update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
         return CREATE_GROUP
 
     try:
-        group_name = _construct_group_name(update.effective_message.text)
+        group_name = update.effective_message.text
         group = Group.create(
             user=update.effective_message.from_user.id,
             chat=update.effective_message.chat_id,
@@ -149,8 +144,8 @@ def group_list(bot, update):
 @database.atomic()
 def group_open(bot, update, user_data):
     user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
-    message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
-    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    kwargs = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
+    update.effective_message.edit_text(**kwargs)
 
 
 @database.atomic()
@@ -170,9 +165,10 @@ def group_join(bot, update):
             return update.callback_query.answer("Maximum amount of members in the group.")
         GroupUsers.create(group=group, alias=update.callback_query.from_user.name)
 
-        message, keyboard = _build_action_menu(group, update)
-        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-        update.effective_message.reply_text(f"{update.callback_query.from_user.name} joined the group {group.name}", quote=False)
+        kwargs = _build_action_menu(group, update)
+        update.effective_message.edit_text(**kwargs)
+        update.effective_message.reply_text(
+            f"{update.callback_query.from_user.name} joined the group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
     except IntegrityError:
         update.callback_query.answer("You're already in that group.")
 
@@ -183,9 +179,11 @@ def group_leave(bot, update):
     GroupUsers.delete().where(
         (GroupUsers.group == group) & (GroupUsers.alias == update.callback_query.from_user.name)
     ).execute()
-    message, keyboard = _build_action_menu(group, update)
-    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
-    update.effective_message.reply_text(f"{update.callback_query.from_user.name} left the group {group.name}", quote=False)
+
+    kwargs = _build_action_menu(group, update)
+    update.effective_message.edit_text(**kwargs)
+    update.effective_message.reply_text(
+        f"{update.callback_query.from_user.name} left the group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
 
 
 @database.atomic()
@@ -211,7 +209,7 @@ def group_add_members(bot, update, user_data):
     group = Group.get_by_id(user_data.get('effective_group'))
     try:
         alias = update.effective_message.text
-        validated, message = _validate_alias(alias)
+        validated, message = _validate_alias(alias, use_at=True)
         if not validated:
             update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
         else:
@@ -219,9 +217,9 @@ def group_add_members(bot, update, user_data):
             GroupUsers.create(group=group, alias=alias)
             update.effective_message.reply_text(f'Added `{escape_markdown(alias)}`', parse_mode=ParseMode.MARKDOWN)
             if len(group.members) >= config('GROUP_MEMBERS_LIMIT', cast=int):
-                message, keyboard = _build_action_menu(group, update)
+                kwargs = _build_action_menu(group, update)
                 update.effective_message.reply_text(f'Maximum amount of members reached.')
-                update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+                update.effective_message.reply_text(**kwargs)
                 return ConversationHandler.END
 
     except IntegrityError:
@@ -236,8 +234,8 @@ def group_add_members(bot, update, user_data):
 def group_add_members_complete(bot, update, user_data):
     update.effective_message.reply_text('Saved new members.')
 
-    message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
-    update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    kwargs = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
+    update.effective_message.reply_text(**kwargs)
     return ConversationHandler.END
 
 
@@ -266,8 +264,8 @@ def group_remove_members(bot, update, user_data):
     GroupUsers.delete().where(GroupUsers.id == member_id).execute()
     _, keyboard = _build_members_menu(Group.get_by_id(user_data.get('effective_group')))
     if len(keyboard) == 1:
-        message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
-        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+        kwargs = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
+        update.effective_message.edit_text(**kwargs)
     else:
         update.effective_message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
     return GROUP_REMOVE_MEMBERS
@@ -275,8 +273,8 @@ def group_remove_members(bot, update, user_data):
 
 @database.atomic()
 def group_remove_exit(bot, update, user_data):
-    message, keyboard = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
-    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    kwargs = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
+    update.effective_message.edit_text(**kwargs)
     return ConversationHandler.END
 
 
@@ -297,22 +295,22 @@ def group_rename_enter(bot, update, user_data):
 
 @database.atomic()
 def group_rename_complete(bot, update, user_data):
-    validated, message = _validate_alias(update.effective_message.text, use_alphabet=True)
+    validated, message = _validate_alias(update.effective_message.text, use_at=False, use_alphabet=True)
     if not validated:
         update.effective_message.reply_text(f'Sorry, invalid group name. {message}')
         return GROUP_RENAME
 
     group = Group.get_by_id(user_data.get('effective_group'))
     try:
-        group.name = _construct_group_name(update.effective_message.text)
+        group.name = update.effective_message.text
         group.save()
         update.effective_message.reply_text('Saved.')
     except IntegrityError:
         update.effective_message.reply_text("You've already created a group with that name. Try again or /cancel")
         return GROUP_RENAME
 
-    message, keyboard = _build_action_menu(group, update)
-    update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    kwargs = _build_action_menu(group, update)
+    update.effective_message.reply_text(**kwargs)
     return ConversationHandler.END
 
 
@@ -328,11 +326,11 @@ def group_delete_enter(bot, update, user_data):
         return ConversationHandler.END
 
     update.effective_message.edit_text(
-        text=f'Are you sure, you want to delete the group {group.name}?',
+        text=f'Are you sure, you want to delete the group {group_bold_text(group.name)}?',
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton('Yes', callback_data='group.delete.yes'),
-             InlineKeyboardButton('No', callback_data='group.delete.no')]
-        ]))
+             InlineKeyboardButton('No', callback_data='group.delete.no')]]),
+        parse_mode=ParseMode.MARKDOWN)
     return GROUP_DELETE
 
 
@@ -348,7 +346,7 @@ def group_delete_complete(bot, update, user_data):
         update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
 
     if action == 'no':
-        message, keyboard = _build_action_menu(group, update)
-        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+        kwargs = _build_action_menu(group, update)
+        update.effective_message.edit_text(**kwargs)
 
     return ConversationHandler.END
