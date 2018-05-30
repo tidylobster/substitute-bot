@@ -5,9 +5,12 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 from telegram.utils.helpers import escape_markdown
 from peewee import IntegrityError
+from pyrogram.api.errors import UsernameNotOccupied
+from pyrogram.api import functions
 
 from .models import database, Group, GroupUsers
 from .substitutegroup import group_bold_text, get_translitted
+from .utils import *
 
 CREATE_GROUP, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE = range(5)
 config = Config(RepositoryEnv('config.env'))
@@ -71,8 +74,8 @@ def _build_action_menu(group, update):
 
     if group.members:
         message = f'{message}\n\nMembers:'
-        for member in group.members:
-            message = f'{message}\n- {member.alias[1:]}'
+        for index, member in enumerate(group.members, 1):
+            message = f'{message}\n{index}. {escape_markdown(member.alias[1:])}'
     else:
         message = f'{message}\n\n No members yet.'
 
@@ -204,27 +207,46 @@ def group_add_members_enter(bot, update, user_data):
     return GROUP_ADD_MEMBERS
 
 
+@client_wrapper
 @database.atomic()
-def group_add_members(bot, update, user_data):
+def group_add_members(bot, update, app, user_data):
+
     group = Group.get_by_id(user_data.get('effective_group'))
     try:
+
+        # 1. Different handcrafted constraints
         alias = update.effective_message.text
         validated, message = _validate_alias(alias, use_at=True)
+
         if not validated:
             update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
-        else:
-            alias = alias if '@' in alias else f'@{alias}'
-            GroupUsers.create(group=group, alias=alias)
-            update.effective_message.reply_text(f'Added `{escape_markdown(alias)}`', parse_mode=ParseMode.MARKDOWN)
-            if len(group.members) >= config('GROUP_MEMBERS_LIMIT', cast=int):
-                kwargs = _build_action_menu(group, update)
-                update.effective_message.reply_text(f'Maximum amount of members reached.')
-                update.effective_message.reply_text(**kwargs)
-                return ConversationHandler.END
+
+        alias = alias if '@' in alias else f'@{alias}'
+        user = app.get_users(alias)  # checking, if username is occupied
+        full_chat = app.send(
+            functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
+
+        if not user.id in [getattr(item, 'id') for item in full_chat.users]:
+            update.effective_message.reply_text(f'User `{escape_markdown(alias)}` is not present in the chat.', parse_mode=ParseMode.MARKDOWN)
+            return GROUP_ADD_MEMBERS
+
+        # 2. Actual adding user to the group
+        GroupUsers.create(group=group, alias=alias)
+        update.effective_message.reply_text(f'Added `{escape_markdown(alias)}`', parse_mode=ParseMode.MARKDOWN)
+        if len(group.members) >= config('GROUP_MEMBERS_LIMIT', cast=int):
+            kwargs = _build_action_menu(group, update)
+            update.effective_message.reply_text(f'Maximum amount of members reached.')
+            update.effective_message.reply_text(**kwargs)
+            return ConversationHandler.END
 
     except IntegrityError:
         update.effective_message.reply_text(
             f'You have already added `{escape_markdown(alias)}` to the group',
+            parse_mode=ParseMode.MARKDOWN)
+
+    except UsernameNotOccupied:
+        update.effective_message.reply_text(
+            f'Username `{escape_markdown(alias)}` is not occupied.',
             parse_mode=ParseMode.MARKDOWN)
 
     return GROUP_ADD_MEMBERS
@@ -232,7 +254,7 @@ def group_add_members(bot, update, user_data):
 
 @database.atomic()
 def group_add_members_complete(bot, update, user_data):
-    update.effective_message.reply_text('Saved new members.')
+    update.effective_message.reply_text('Saved new members.', quote=False)
 
     kwargs = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
     update.effective_message.reply_text(**kwargs)

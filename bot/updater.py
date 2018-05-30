@@ -3,12 +3,13 @@ import logging
 from decouple import Config, RepositoryEnv
 from telegram.ext import *
 
-from .groups import *
-from .notification import *
-
 config = Config(RepositoryEnv('config.env'))
 updater = Updater(token=config('TOKEN'))
 dispatcher = updater.dispatcher
+
+from .groups import *
+from .notification import *
+
 
 if not config('DEBUG', cast=bool):
     logging.basicConfig(

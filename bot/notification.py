@@ -93,7 +93,9 @@ def mention_all(bot, update, app, chat_data):
                 f"/all can be called again in {int(difference.total_seconds())} seconds.", quote=False)
 
     full_chat = app.send(functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
-    message, members, limit = '', [], config('GROUP_MENTION_ALL_LIMIT', cast=int)
+
+    messsage = ''
+    members, limit = [], config('GROUP_MENTION_ALL_LIMIT', cast=int)
     for user in full_chat.users:
         if limit == 0:
             messsage = f"Sorry, I am restricted to show only up to " \
