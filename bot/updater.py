@@ -99,7 +99,8 @@ dispatcher.add_handler(ConversationHandler(
         GROUP_REMOVE_MEMBERS: [
             CallbackQueryHandler(group_remove_exit, pattern='group.remove.exit', pass_user_data=True),
             CallbackQueryHandler(group_remove_members, pattern='group.remove.member.', pass_user_data=True)]},
-    fallbacks=[CommandHandler('cancel', cancel)], conversation_timeout=120))
+    fallbacks=[CommandHandler('cancel', cancel)],
+    conversation_timeout=120))
 
 # renaming groups
 dispatcher.add_handler(ConversationHandler(
@@ -115,7 +116,16 @@ dispatcher.add_handler(ConversationHandler(
     states={
         GROUP_DELETE: [
             CallbackQueryHandler(group_delete_complete, pass_user_data=True)]},
-    fallbacks=[CommandHandler('cancel', cancel)], conversation_timeout=60))
+    fallbacks=[CommandHandler('cancel', cancel)],
+    conversation_timeout=60))
+
+dispatcher.add_handler(ConversationHandler(
+    entry_points=[CallbackQueryHandler(group_copy_enter, pattern='group.copy.', pass_user_data=True)],
+    states={
+        GROUP_COPY: [
+            CallbackQueryHandler(group_copy_complete, pass_user_data=True)]},
+    fallbacks=[CommandHandler('cancel', cancel)],
+    conversation_timeout=60))
 
 # exiting from the group
 dispatcher.add_handler(CallbackQueryHandler(group_exit, pattern='group.exit'))

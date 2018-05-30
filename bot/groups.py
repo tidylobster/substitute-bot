@@ -5,15 +5,16 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 from telegram.utils.helpers import escape_markdown
 from peewee import IntegrityError
-from pyrogram.api.errors import UsernameNotOccupied
 from pyrogram.api import functions
+from pyrogram.api.errors import UsernameNotOccupied
 
+from .utils import *
 from .models import database, Group, GroupUsers
 from .substitutegroup import group_bold_text, get_translitted
-from .utils import *
 
-CREATE_GROUP, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE = range(5)
 config = Config(RepositoryEnv('config.env'))
+CREATE_GROUP, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE, GROUP_COPY = range(6)
+
 
 # Internal functions
 # ------------------
@@ -47,11 +48,13 @@ def _build_group_menu(chat_id):
     for group in Group.select().where(Group.chat == chat_id):
         keyboard.append([InlineKeyboardButton(
             text=f'{group.name} | {len(group.members)} member(s)',
-            callback_data=f'group.list.{group.id}'
-        )])
-    if not keyboard:
-        return "You don't have any created groups yet. Use /create command to create a group.", keyboard
-    return 'Choose the group', keyboard
+            callback_data=f'group.list.{group.id}')])
+
+    return {
+        'text': 'Choose the group' if keyboard else "You don't have any created groups yet. "
+                                                    "Use /create command to create a group.",
+        'reply_markup': InlineKeyboardMarkup(keyboard)
+    }
 
 
 def _build_action_menu(group, update):
@@ -59,13 +62,21 @@ def _build_action_menu(group, update):
     if group.user == update.effective_user.id:  # if creator
         message = f'Choose an action for {group_bold_text(group.name)} group.'
         keyboard.extend([[InlineKeyboardButton('Add members', callback_data=f'group.add.{group.id}'),
-                          InlineKeyboardButton('Remove members', callback_data=f'group.remove.{group.id}')],
-                         [InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
-                          InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')]])
+                          InlineKeyboardButton('Remove members', callback_data=f'group.remove.{group.id}')]])
+
+        if update.effective_chat.id == update.effective_user.id:
+            keyboard.extend([[InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
+                              InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')]])
+        else:
+            keyboard.extend([[InlineKeyboardButton('Rename group', callback_data=f'group.rename.{group.id}'),
+                              InlineKeyboardButton('Copy group', callback_data=f'group.copy.{group.id}'),
+                              InlineKeyboardButton('Delete group', callback_data=f'group.delete.{group.id}')]])
     else:
+        keyboard.extend([[InlineKeyboardButton('Copy group', callback_data=f'group.copy.{group.id}')]])
         message = f'The {group_bold_text(group.name)} group.'
 
-    if GroupUsers.select().where((GroupUsers.group == group) & (GroupUsers.alias == update.effective_user.name)).first():
+    if GroupUsers.select().where((GroupUsers.group == group) &
+                                 (GroupUsers.alias == update.effective_user.name)).first():
         keyboard.extend([[InlineKeyboardButton('← Back', callback_data=f'group.exit'),
                           InlineKeyboardButton('Leave group', callback_data=f'group.leave.{group.id}')]])
     else:
@@ -82,10 +93,11 @@ def _build_action_menu(group, update):
     return {
         'text': message,
         'reply_markup': InlineKeyboardMarkup(keyboard),
-        'parse_mode': ParseMode.MARKDOWN}
+        'parse_mode': ParseMode.MARKDOWN
+    }
 
 
-def _build_members_menu(group):
+def _construct_members_menu(group):
     keyboard = []
     for index, member in enumerate(group.members):
         if index % 2 == 0:
@@ -94,7 +106,7 @@ def _build_members_menu(group):
             keyboard[-1].append(InlineKeyboardButton(member.alias, callback_data=f'group.remove.member.{member.id}'))
     else:
         keyboard.append([InlineKeyboardButton('← Back', callback_data='group.remove.exit')])
-    return None, keyboard
+    return keyboard
 
 
 # /create command
@@ -140,8 +152,8 @@ def group_create_complete(bot, update):
 
 @database.atomic()
 def group_list(bot, update):
-    message, keyboard = _build_group_menu(update.effective_chat.id)
-    update.effective_message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    kwargs = _build_group_menu(update.effective_chat.id)
+    update.effective_message.reply_text(**kwargs)
 
 
 @database.atomic()
@@ -153,8 +165,8 @@ def group_open(bot, update, user_data):
 
 @database.atomic()
 def group_exit(bot, update):
-    message, keyboard = _build_group_menu(update.effective_chat.id)
-    update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    kwargs = _build_group_menu(update.effective_chat.id)
+    update.effective_message.edit_text(**kwargs)
 
 
 # Adding members
@@ -275,7 +287,7 @@ def group_remove_enter(bot, update, user_data):
         update.callback_query.answer("There aren't any members in the group.")
         return ConversationHandler.END
 
-    _, keyboard = _build_members_menu(Group.get_by_id(user_data.get('effective_group')))
+    keyboard = _construct_members_menu(Group.get_by_id(user_data.get('effective_group')))
     update.effective_message.edit_text('Choose members to remove.', reply_markup=InlineKeyboardMarkup(keyboard))
     return GROUP_REMOVE_MEMBERS
 
@@ -284,7 +296,7 @@ def group_remove_enter(bot, update, user_data):
 def group_remove_members(bot, update, user_data):
     member_id = update.callback_query.data.split('.')[-1]
     GroupUsers.delete().where(GroupUsers.id == member_id).execute()
-    _, keyboard = _build_members_menu(Group.get_by_id(user_data.get('effective_group')))
+    keyboard = _construct_members_menu(Group.get_by_id(user_data.get('effective_group')))
     if len(keyboard) == 1:
         kwargs = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
         update.effective_message.edit_text(**kwargs)
@@ -364,8 +376,64 @@ def group_delete_complete(bot, update, user_data):
     if action == 'yes':
         group.delete_instance(recursive=True)
         update.callback_query.answer('Group have been deleted')
-        message, keyboard = _build_group_menu(update.effective_chat.id)
-        update.effective_message.edit_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+        kwargs = _build_group_menu(update.effective_chat.id)
+        update.effective_message.edit_text(**kwargs)
+
+    if action == 'no':
+        kwargs = _build_action_menu(group, update)
+        update.effective_message.edit_text(**kwargs)
+
+    return ConversationHandler.END
+
+
+# Copying group
+# -------------
+
+@database.atomic()
+def group_copy_enter(bot, update, user_data):
+    user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
+    group = Group.get_by_id(user_data.get('effective_group'))
+
+    keyboard = [[InlineKeyboardButton('Yes', callback_data='group.copy.yes'),
+                 InlineKeyboardButton('No', callback_data='group.copy.no')]]
+    if group.name in [item.name for item in Group.select().where(Group.chat == update.callback_query.from_user.id)]:
+        user_data['overwrite'] = True
+        update.effective_message.edit_text(
+            text='This will overwrite your group. Are you sure?',
+            reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        update.effective_message.edit_text(
+            text='This will copy this group to your private collection. Are you sure?',
+            reply_markup=InlineKeyboardMarkup(keyboard))
+    return GROUP_COPY
+
+
+@database.atomic()
+def group_copy_complete(bot, update, user_data):
+    group = Group.get_by_id(user_data.get('effective_group'))
+    action = update.callback_query.data.split('.')[-1]
+
+    if action == 'yes':
+        if user_data.get('overwrite'):
+            callback_message = 'Group have been overwritten'
+            new_group = Group.select().where((Group.user == update.callback_query.from_user.id) &
+                                             (Group.chat == update.callback_query.from_user.id) &
+                                             (Group.name == group.name)).first()
+        else:
+            callback_message = 'Group have been copied'
+            new_group = Group.create(
+                user=update.callback_query.from_user.id,
+                chat=update.callback_query.from_user.id,
+                name=group.name)
+
+        rows = []
+        for member in group.members:
+            rows.append({'group': new_group, 'alias': member.alias})
+        GroupUsers.insert_many(rows).on_conflict_ignore().execute()
+
+        update.callback_query.answer(callback_message)
+        kwargs = _build_group_menu(update.effective_chat.id)
+        update.effective_message.edit_text(**kwargs)
 
     if action == 'no':
         kwargs = _build_action_menu(group, update)
