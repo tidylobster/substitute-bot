@@ -223,12 +223,13 @@ def group_add_members(bot, update, app, user_data):
 
         alias = alias if '@' in alias else f'@{alias}'
         user = app.get_users(alias)  # checking, if username is occupied
-        full_chat = app.send(
-            functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
 
-        if not user.id in [getattr(item, 'id') for item in full_chat.users]:
-            update.effective_message.reply_text(f'User `{escape_markdown(alias)}` is not present in the chat.', parse_mode=ParseMode.MARKDOWN)
-            return GROUP_ADD_MEMBERS
+        if not update.effective_chat.id == update.effective_user.id:
+            full_chat = app.send(
+                functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
+            if not user.id in [getattr(item, 'id') for item in full_chat.users]:
+                update.effective_message.reply_text(f'User `{escape_markdown(alias)}` is not present in the chat.', parse_mode=ParseMode.MARKDOWN)
+                return GROUP_ADD_MEMBERS
 
         # 2. Actual adding user to the group
         GroupUsers.create(group=group, alias=alias)
