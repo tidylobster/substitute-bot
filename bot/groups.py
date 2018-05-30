@@ -7,7 +7,7 @@ from telegram.utils.helpers import escape_markdown
 from peewee import IntegrityError
 
 from .models import database, Group, GroupUsers
-from .substitutegroup import group_bold_text
+from .substitutegroup import group_bold_text, get_translitted
 
 CREATE_GROUP, GROUP_ADD_MEMBERS, GROUP_REMOVE_MEMBERS, GROUP_RENAME, GROUP_DELETE = range(5)
 config = Config(RepositoryEnv('config.env'))
@@ -119,7 +119,7 @@ def group_create_complete(bot, update):
         return CREATE_GROUP
 
     try:
-        group_name = update.effective_message.text
+        group_name = get_translitted(update.effective_message.text, case_insansitive=True)
         group = Group.create(
             user=update.effective_message.from_user.id,
             chat=update.effective_message.chat_id,
@@ -302,7 +302,7 @@ def group_rename_complete(bot, update, user_data):
 
     group = Group.get_by_id(user_data.get('effective_group'))
     try:
-        group.name = update.effective_message.text
+        group.name = get_translitted(update.effective_message.text, case_insansitive=True)
         group.save()
         update.effective_message.reply_text('Saved.')
     except IntegrityError:
