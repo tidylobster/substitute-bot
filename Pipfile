@@ -8,6 +8,8 @@ python-telegram-bot = "*"
 python-decouple = "*"
 peewee = "*"
 transliterate = "*"
+pyrogram = "*"
+tgcrypto = "*"
 
 [dev-packages]
 

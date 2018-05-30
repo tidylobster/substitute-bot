@@ -3,12 +3,13 @@ import logging
 from decouple import Config, RepositoryEnv
 from telegram.ext import *
 
-from .groups import *
-from .notification import *
-
 config = Config(RepositoryEnv('config.env'))
 updater = Updater(token=config('TOKEN'))
 dispatcher = updater.dispatcher
+
+from .groups import *
+from .notification import *
+
 
 if not config('DEBUG', cast=bool):
     logging.basicConfig(
@@ -62,6 +63,9 @@ dispatcher.add_handler(CommandHandler('help', help))
 # inline mode
 dispatcher.add_handler(InlineQueryHandler(inline_mode))
 dispatcher.add_handler(ChosenInlineResultHandler(inline_chosen))
+
+# mention all members
+dispatcher.add_handler(CommandHandler('all', mention_all, pass_chat_data=True))
 
 # creating groups
 dispatcher.add_handler(ConversationHandler(
