@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e46c708f7104d921648290cba77815fe6adf5c473514a4ace68bddd65bf0f837"
+            "sha256": "fe5ea0e62d270b0082c3f4b65c3266bae429104c5e310ee76aa78cbd1de2cdcb"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -31,10 +31,30 @@
         },
         "peewee": {
             "hashes": [
-                "sha256:7344f317cc0cc0e9acf43eb493bf4dc5963a94ccd6867f27795abc85a972e265"
+                "sha256:7bd76cf2f7fdda898ed5235774f6edd8104a712ecad9883ba91dfef8ad85d3e3"
             ],
             "index": "pypi",
-            "version": "==3.4.0"
+            "version": "==3.5.0"
+        },
+        "pyaes": {
+            "hashes": [
+                "sha256:02c1b1405c38d3c370b085fb952dd8bea3fadcee6411ad99f312cc129c536d8f"
+            ],
+            "version": "==1.6.1"
+        },
+        "pyrogram": {
+            "hashes": [
+                "sha256:1538304f3c49ca7dfe944f39e6da970deb93e05176bc7a9e1092dc04b4910669",
+                "sha256:6d53cd8aeb34b08be36af3d01aa029da9fbb8ff91cea7c36dbbe391302d3d35d"
+            ],
+            "index": "pypi",
+            "version": "==0.7.4"
+        },
+        "pysocks": {
+            "hashes": [
+                "sha256:3fe52c55890a248676fd69dc9e3c4e811718b777834bcaab7a8125cf9deac672"
+            ],
+            "version": "==1.6.8"
         },
         "python-decouple": {
             "hashes": [
