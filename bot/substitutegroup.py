@@ -34,8 +34,8 @@ def substitute_groups(message, groups, draft=False):
     if overfit and draft:
         final_message += " (...)"
 
-    if not draft:
-        final_message += "\n" + ' '.join(last)
+    if not draft and len(last) > 0:
+        final_message += "\n\n" + ' '.join(last)
 
     return final_message
 
