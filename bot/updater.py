@@ -7,8 +7,8 @@ config = Config(RepositoryEnv('config.env'))
 updater = Updater(token=config('TOKEN'))
 dispatcher = updater.dispatcher
 
-from .groups import *
-from .notification import *
+from .controllers.groups import *
+from .controllers.notification import *
 
 
 if not config('DEBUG', cast=bool):

@@ -1,5 +1,5 @@
-from .updater import config
 from pyrogram import Client
+from .updater import config
 
 
 def client_wrapper(func):

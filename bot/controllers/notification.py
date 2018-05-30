@@ -7,10 +7,9 @@ from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
 from pyrogram.api import functions
 
-from .updater import config
+from ..models import database, Group
+from ..utils import client_wrapper
 from .substitutegroup import *
-from .models import database, Group
-from .utils import client_wrapper
 
 
 # Inline Query
