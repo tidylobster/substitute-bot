@@ -141,7 +141,6 @@ def group_create_complete(bot, update):
             user=update.effective_message.from_user.id,
             chat=update.effective_message.chat_id,
             name=group_name)
-        GroupUsers.create(group=group, alias=update.effective_user.name)
         update.effective_message.reply_text('Saved. You can see all of your /groups if you like.')
         return ConversationHandler.END
     except IntegrityError:  # Index fell down
