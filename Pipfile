@@ -10,6 +10,8 @@ peewee = "*"
 transliterate = "*"
 pyrogram = "*"
 tgcrypto = "*"
+tgintegration = "*"
+pytest = "*"
 
 [dev-packages]
 

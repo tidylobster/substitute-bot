@@ -1,4 +1,5 @@
 /bot/__pycache__/
+/bot/tests/.pytest_cache/
 /.idea/
 *.db
 *.log
