@@ -8,6 +8,7 @@ from telegram import InlineQueryResultArticle, InputTextMessageContent
 from pyrogram.api import functions
 
 from ..models import database, Group
+from ..updater import config
 from ..utils import client_wrapper
 from .substitutegroup import *
 
