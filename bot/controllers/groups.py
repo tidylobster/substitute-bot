@@ -185,7 +185,7 @@ def group_join(bot, update):
         kwargs = _build_action_menu(group, update)
         update.effective_message.edit_text(**kwargs)
         update.effective_message.reply_text(
-            f"{update.callback_query.from_user.name} joined the group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
+            f"{update.callback_query.from_user.name} joined group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
     except IntegrityError:
         update.callback_query.answer("You're already in that group.")
 
@@ -200,7 +200,7 @@ def group_leave(bot, update):
     kwargs = _build_action_menu(group, update)
     update.effective_message.edit_text(**kwargs)
     update.effective_message.reply_text(
-        f"{update.callback_query.from_user.name} left the group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
+        f"{update.callback_query.from_user.name} left group {group_bold_text(group.name)}", quote=False, parse_mode=ParseMode.MARKDOWN)
 
 
 @database.atomic()
@@ -236,12 +236,13 @@ def group_add_members(bot, update, app, user_data):
 
         alias = alias if '@' in alias else f'@{alias}'
         user = app.get_users(alias)  # checking, if username is occupied
-        full_chat = app.send(
-            functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
 
-        if not user.id in [getattr(item, 'id') for item in full_chat.users]:
-            update.effective_message.reply_text(f'User `{escape_markdown(alias)}` is not present in the chat.', parse_mode=ParseMode.MARKDOWN)
-            return GROUP_ADD_MEMBERS
+        if not update.effective_chat.id == update.effective_user.id:
+            full_chat = app.send(
+                functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
+            if not user.id in [getattr(item, 'id') for item in full_chat.users]:
+                update.effective_message.reply_text(f'User `{escape_markdown(alias)}` is not present in the chat.', parse_mode=ParseMode.MARKDOWN)
+                return GROUP_ADD_MEMBERS
 
         # 2. Actual adding user to the group
         GroupUsers.create(group=group, alias=alias)
