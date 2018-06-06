@@ -62,17 +62,17 @@ def test_create_group_with_valid_symbols(client: BotIntegrationClient):
 
 def test_rename_existing_group(client: BotIntegrationClient):
     name = "tesrenameexistingroup"
-    if not group_is_existing(client, name):
-        create_group_command(client, name)
+    create_if_not_existing_group(client, name)
 
     rename_group_command(client, name)
+    
 
 def test_delete_existing_group(client: BotIntegrationClient):
     name = "testexistinggroup"
-    if not group_is_existing(client, name):
-        create_group_command(client, name)
+    create_if_not_existing_group(client, name)
 
     delete_group_command(client, name)
+
 
 def test_add_members_from_existing_group(client: BotIntegrationClient):
     print()
@@ -80,6 +80,7 @@ def test_add_members_from_existing_group(client: BotIntegrationClient):
 
 def test_remove_members_from_existing_group(client: BotIntegrationClient):
     print()
+
 
 def test_integration_create_rename_delete_group(client: BotIntegrationClient):
     name = "testrename"
@@ -132,6 +133,10 @@ def group_is_existing(client: BotIntegrationClient, group_name: str):
             return True
     else:
         return False
+
+def create_if_not_existing_group(client, name):
+    if not group_is_existing(client, name):
+        create_group_command(client, name)
 
 def bot_send_tg_command(client: BotIntegrationClient, command:str):
     return client.send_command_await(command, num_expected=1)
