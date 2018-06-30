@@ -192,6 +192,9 @@ def group_join(bot, update):
 @database.atomic()
 def group_leave(bot, update):
     group = Group.get_by_id(int(update.callback_query.data.split('.')[-1]))
+    if not GroupUsers.select().where((GroupUsers.group == group) & (GroupUsers.alias == update.callback_query.from_user.name)):
+        return update.callback_query.answer("You are not present in the group.")
+
     GroupUsers.delete().where(
         (GroupUsers.group == group) & (GroupUsers.alias == update.callback_query.from_user.name)
     ).execute()
@@ -236,7 +239,8 @@ def group_add_members(bot, update, app, user_data):
         alias = alias if '@' in alias else f'@{alias}'
         user = app.get_users(alias)  # checking, if username is occupied
 
-        if not update.effective_chat.id == update.effective_user.id:
+        # this works only for groups
+        if update.effective_chat.type == 'group' and not update.effective_chat.id == update.effective_user.id:
             full_chat = app.send(
                 functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
             if not user.id in [getattr(item, 'id') for item in full_chat.users]:
@@ -296,7 +300,12 @@ def group_remove_enter(bot, update, user_data):
 @database.atomic()
 def group_remove_members(bot, update, user_data):
     member_id = update.callback_query.data.split('.')[-1]
-    GroupUsers.delete().where(GroupUsers.id == member_id).execute()
+    user = GroupUsers.get_by_id(member_id)
+    update.callback_query.message.reply_text(
+        f"{user.alias} has been removed from {group_bold_text(user.group.name)}",
+        parse_mode=ParseMode.MARKDOWN, quote=False)
+    user.delete_instance()
+
     keyboard = _construct_members_menu(Group.get_by_id(user_data.get('effective_group')))
     if len(keyboard) == 1:
         kwargs = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
