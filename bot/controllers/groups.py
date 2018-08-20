@@ -217,9 +217,10 @@ def group_add_members_enter(bot, update, user_data):
         return ConversationHandler.END
 
     update.callback_query.answer()
-    update.effective_message.reply_text(
+    update.effective_message.edit_text(
         f'Ok, send usernames (like {update.effective_user.name}) one by one. '
-        f'When you will be ready, send /done for completing.')
+        f'When you will be ready, send /done for completing.',
+        reply_markup=InlineKeyboardMarkup([]))
     return GROUP_ADD_MEMBERS
 
 
@@ -263,7 +264,7 @@ def group_add_members(bot, update, app, user_data):
 
     except UsernameNotOccupied:
         update.effective_message.reply_text(
-            f'Username `{escape_markdown(alias)}` is not occupied.',
+            f'Username `{escape_markdown(alias)}` is not occupied. No one\'s registered under that name.',
             parse_mode=ParseMode.MARKDOWN)
 
     return GROUP_ADD_MEMBERS
