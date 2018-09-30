@@ -35,8 +35,8 @@ def _validate_alias(alias, use_at=True, use_alphabet=False):
         return False, 'Too many @ symbols.'
     if use_at and '@' in alias and not alias.startswith('@'):
         return False, 'Username should start with @.'
-    if not 4 < len(alias) < 33 or use_at and '@' in alias and not 5 < len(alias) < 34:
-        return False, 'Length of the username must be 5-32 symbols.'
+    if not 2 < len(alias) < 33 or use_at and '@' in alias and not 5 < len(alias) < 34:
+        return False, 'Length of the username must be 3-32 symbols.'
 
     alphabet = _construct_alphabet() if use_alphabet else ''
     symbols = '@_' if use_at else '_'
