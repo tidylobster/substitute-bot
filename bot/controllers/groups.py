@@ -124,7 +124,7 @@ def group_create(bot, update):
         update.effective_message.reply_text(f'You cannot have more that {config("GROUP_LIMIT", cast=int)} groups.')
         return ConversationHandler.END
 
-    update.effective_message.reply_text('Ok, send the name of the group. /cancel')
+    update.effective_message.reply_text('Ok, send the name of the group. /cancel', quote=False)
     return CREATE_GROUP
 
 
