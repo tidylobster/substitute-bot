@@ -1,5 +1,6 @@
 /bot/__pycache__/
 /.idea/
+/.vscode/
 *.db
 *.log
 *.env
