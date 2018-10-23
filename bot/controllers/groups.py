@@ -55,7 +55,8 @@ def _build_group_menu(chat_id):
     return {
         'text': 'Choose the group' if keyboard else "You don't have any created groups yet. "
                                                     "Use /create command to create a group.",
-        'reply_markup': InlineKeyboardMarkup(keyboard)
+        'reply_markup': InlineKeyboardMarkup(keyboard),
+        'quote': False, 
     }
 
 
@@ -95,7 +96,8 @@ def _build_action_menu(group, update):
     return {
         'text': message,
         'reply_markup': InlineKeyboardMarkup(keyboard),
-        'parse_mode': ParseMode.MARKDOWN
+        'parse_mode': ParseMode.MARKDOWN,
+        'quote': False
     }
 
 
