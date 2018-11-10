@@ -1,6 +1,12 @@
 pipeline {
     agent none
     stages {
+        stage('Clean') {
+            steps {
+                sh 'pwd'
+                sh 'ls'
+            }
+        }
         stage('Build') {
             agent {
                 docker {
