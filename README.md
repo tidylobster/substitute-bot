@@ -4,4 +4,4 @@ This is a python-telegram-bot project. This bot will allow you to create custom 
 
 Open the bot and check it yourself! https://telegram.me/substitute_bot
 
-If you have any comments/suggestions, please, open an issue. 
+If you have any comments/suggestions, please, open an [issue](https://github.com/tidylobster/substitute-bot/issues/new). 
