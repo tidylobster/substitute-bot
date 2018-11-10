@@ -1,14 +1,6 @@
 pipeline {
     agent any
     stages {
-        stage('Clean') {
-            steps {
-                sh 'echo $PWD'
-                sh 'pwd'
-                sh 'rm -rf $PWD/*'
-                sh 'ls'
-            }
-        }
         stage('Build') {
             agent {
                 docker {
@@ -19,11 +11,11 @@ pipeline {
                 sh 'python3 -m py_compile bot.py $(ls ./**/*.py)'
             }
         }
-        stage('Check') {
+        stage('Deploy') {
             steps {
-                sh 'pwd'
-                sh 'ls'
-                sh 'ls bot/'
+                sh 'scp -r . tidylobster@95.216.149.46:/home/tidylobster/substitute-bot/'
+                sh 'screen -S subsitute-bot -X quit'
+                sh 'screen -dmS substitute-bot bash -c "python3 /home/tidylobster/substitute-bot/bot.py"'
             }
         }
     }
