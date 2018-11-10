@@ -12,7 +12,7 @@ pipeline {
             }
             post {
                 failure {
-                    telegramSend 'Build for @substitute_bot has been failed'
+                    telegramSend 'Build for @substitute\\_bot has been failed'
                 }
             }
         }
@@ -23,10 +23,10 @@ pipeline {
             }
             post {
                 success {
-                    telegramSend '@substitute_bot has been successfully updated'
+                    telegramSend '@substitute\\_bot has been successfully updated'
                 }
                 failure {
-                    telegramSend 'Deploy for @substitute_bot has been failed'
+                    telegramSend 'Deploy for @substitute\\_bot has been failed'
                 }
             }
         }
