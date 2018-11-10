@@ -14,10 +14,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh 'scp -r ./* root@95.216.149.46:/root/substitute-bot/'
-                sh 'ssh root@95.216.149.46 <<EOF \
-                        cd /root/substitute-bot/; \
-                        make deploy \
-                    EOF'
+                sh 'ssh root@95.216.149.46 make deploy -C /root/substitute-bot/'
             }
         }
     }
