@@ -7,9 +7,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 from telegram.utils.helpers import escape_markdown
 
-from pyrogram.api import functions
-from pyrogram.api.errors import UsernameNotOccupied
-
 from ..models import database, Group, GroupUsers
 from .substitutegroup import group_bold_text, get_translitted
 
@@ -251,11 +248,6 @@ def group_add_members(bot, update, user_data):
     except IntegrityError:
         update.effective_message.reply_text(
             f'You have already added `{escape_markdown(alias)}` to the group',
-            parse_mode=ParseMode.MARKDOWN)
-
-    except UsernameNotOccupied:
-        update.effective_message.reply_text(
-            f'Username `{escape_markdown(alias)}` is not occupied. No one\'s registered under that name.',
             parse_mode=ParseMode.MARKDOWN)
 
     return GROUP_ADD_MEMBERS

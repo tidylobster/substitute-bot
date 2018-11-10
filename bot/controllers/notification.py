@@ -5,8 +5,6 @@ from uuid import uuid4
 from telegram import ParseMode
 from transliterate.exceptions import LanguageDetectionError
 from telegram import InlineQueryResultArticle, InputTextMessageContent
-from pyrogram.api import functions
-from pyrogram.api.errors import error
 
 from ..models import database, Group
 from ..updater import config
