@@ -10,7 +10,6 @@ from telegram.utils.helpers import escape_markdown
 from pyrogram.api import functions
 from pyrogram.api.errors import UsernameNotOccupied
 
-from ..utils import client_wrapper
 from ..models import database, Group, GroupUsers
 from .substitutegroup import group_bold_text, get_translitted
 
@@ -226,9 +225,8 @@ def group_add_members_enter(bot, update, user_data):
     return GROUP_ADD_MEMBERS
 
 
-@client_wrapper
 @database.atomic()
-def group_add_members(bot, update, app, user_data):
+def group_add_members(bot, update, user_data):
 
     group = Group.get_by_id(user_data.get('effective_group'))
     try:
@@ -240,17 +238,8 @@ def group_add_members(bot, update, app, user_data):
             update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
 
         alias = alias if '@' in alias else f'@{alias}'
-        user = app.get_users(alias)  # checking, if username is occupied
 
-        # this works only for groups
-        if update.effective_chat.type == 'group' and not update.effective_chat.id == update.effective_user.id:
-            full_chat = app.send(
-                functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
-            if not user.id in [getattr(item, 'id') for item in full_chat.users]:
-                update.effective_message.reply_text(f'User `{escape_markdown(alias)}` is not present in the chat.', parse_mode=ParseMode.MARKDOWN)
-                return GROUP_ADD_MEMBERS
-
-        # 2. Actual adding user to the group
+        # 2. Adding user to the group
         GroupUsers.create(group=group, alias=alias)
         update.effective_message.reply_text(f'Added `{escape_markdown(alias)}`', parse_mode=ParseMode.MARKDOWN)
         if len(group.members) >= config('GROUP_MEMBERS_LIMIT', cast=int):
