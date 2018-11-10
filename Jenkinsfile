@@ -14,8 +14,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh 'scp -r ./* root@95.216.149.46:/root/substitute-bot/'
-                sh 'ssh root@95.216.149.46 screen -S substitute-bot -X quit'
-                sh 'ssh root@95.216.149.46 screen -S substitute-bot; python3 /root/substitute-bot/bot.py'
+                sh 'ssh root@95.216.149.46 cd /root/substitute-bot/; make deploy'
             }
         }
     }
