@@ -3,7 +3,7 @@ pipeline {
     stages {
         stage('Clean') {
             steps {
-                sh 'pwd'
+                sh 'rm -rf .'
                 sh 'ls'
             }
         }
@@ -15,6 +15,13 @@ pipeline {
             }
             steps {
                 sh 'python3 -m py_compile bot.py $(ls ./**/*.py)'
+            }
+        }
+        stage('Check') {
+            steps {
+                sh 'pwd'
+                sh 'ls'
+                sh 'ls bot/'
             }
         }
     }
