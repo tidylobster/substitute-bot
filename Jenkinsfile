@@ -8,13 +8,16 @@ pipeline {
                 }
             }
             steps {
-                sh 'python3 -m py_compile bot.py $(ls ./**/*.py)'
+                sh 'python3 -m py_compile $(ls ./**/*.py)'
             }
         }
         stage('Deploy') {
             steps {
                 sh 'scp -r ./* root@95.216.149.46:/root/substitute-bot/'
-                sh 'ssh root@95.216.149.46 cd /root/substitute-bot/; make deploy'
+                sh 'ssh root@95.216.149.46 <<EOF 
+                        cd /root/substitute-bot/; 
+                        make deploy
+                    EOF'
             }
         }
     }
