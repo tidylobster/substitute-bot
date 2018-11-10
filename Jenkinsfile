@@ -14,8 +14,8 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh 'scp -r . tidylobster@95.216.149.46:/home/tidylobster/substitute-bot/'
-                sh 'screen -S subsitute-bot -X quit'
-                sh 'screen -dmS substitute-bot bash -c "python3 /home/tidylobster/substitute-bot/bot.py"'
+                sh 'ssh tidylobster@95.216.149.46 screen -S subsitute-bot -X quit'
+                sh 'ssh tidylobster@95.216.149.46 screen -dmS substitute-bot bash -c "python3 /home/tidylobster/substitute-bot/bot.py"'
             }
         }
     }
