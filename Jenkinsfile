@@ -3,7 +3,9 @@ pipeline {
     stages {
         stage('Clean') {
             steps {
-                sh 'rm -rf .'
+                sh 'echo $PWD'
+                sh 'pwd'
+                sh 'rm -rf $PWD/*'
                 sh 'ls'
             }
         }
