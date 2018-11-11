@@ -26,11 +26,11 @@ def _construct_alphabet():
 
 def _validate_alias(alias, use_at=True, use_alphabet=False):
     if len(alias.split(' ')) > 1:
-        return False, 'Multiple usernames sent all at once. Try to send them one by one.'
+        return False, 'Spaces are not accepted.'
     if use_at and len(re.findall('@', alias)) > 1:
         return False, 'Too many @ symbols.'
     if use_at and '@' in alias and not alias.startswith('@'):
-        return False, 'Username should start with @.'
+        return False, 'Username starts with @.'
     if not 2 < len(alias) < 33 or use_at and '@' in alias and not 5 < len(alias) < 34:
         return False, 'Length of the username must be 3-32 symbols.'
 
@@ -233,6 +233,7 @@ def group_add_members(bot, update, user_data):
 
         if not validated:
             update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
+            return GROUP_ADD_MEMBERS
 
         alias = alias if '@' in alias else f'@{alias}'
 
