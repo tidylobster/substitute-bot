@@ -1,8 +1,7 @@
 BOT_NAME=substitute-bot
 BOT_TEST_NAME=substitute-bot-testing
 
-
-test_bot_instance: 
+test_bot_instance: clean_testing_session
 	@echo "Creating new testing session"
 	screen -dmS ${BOT_TEST_NAME} python3 bot.py
 

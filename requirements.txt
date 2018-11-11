@@ -2,3 +2,6 @@ python-decouple==3.1
 python-telegram-bot==10.1.0
 peewee==3.6.4
 transliterate==1.10.1
+tgintegration==0.2.4
+Pyrogram==0.7.4
+pytest==3.10.0
