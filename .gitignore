@@ -1,7 +1,7 @@
-/bot/__pycache__/
-/bot/tests/.pytest_cache/
-/.idea/
+/**/__pycache__/
+/.vscode/
 *.db
 *.log
 *.env
 *.session
+*.pyc

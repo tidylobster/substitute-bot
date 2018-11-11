@@ -7,10 +7,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 from telegram.utils.helpers import escape_markdown
 
-from pyrogram.api import functions
-from pyrogram.api.errors import UsernameNotOccupied
-
-from ..utils import client_wrapper
 from ..models import database, Group, GroupUsers
 from .substitutegroup import group_bold_text, get_translitted
 
@@ -35,8 +31,8 @@ def _validate_alias(alias, use_at=True, use_alphabet=False):
         return False, 'Too many @ symbols.'
     if use_at and '@' in alias and not alias.startswith('@'):
         return False, 'Username should start with @.'
-    if not 4 < len(alias) < 33 or use_at and '@' in alias and not 5 < len(alias) < 34:
-        return False, 'Length of the username must be 5-32 symbols.'
+    if not 2 < len(alias) < 33 or use_at and '@' in alias and not 5 < len(alias) < 34:
+        return False, 'Length of the username must be 3-32 symbols.'
 
     alphabet = _construct_alphabet() if use_alphabet else ''
     symbols = '@_' if use_at else '_'
@@ -55,7 +51,8 @@ def _build_group_menu(chat_id):
     return {
         'text': 'Choose the group' if keyboard else "You don't have any created groups yet. "
                                                     "Use /create command to create a group.",
-        'reply_markup': InlineKeyboardMarkup(keyboard)
+        'reply_markup': InlineKeyboardMarkup(keyboard),
+        'quote': False, 
     }
 
 
@@ -95,7 +92,8 @@ def _build_action_menu(group, update):
     return {
         'text': message,
         'reply_markup': InlineKeyboardMarkup(keyboard),
-        'parse_mode': ParseMode.MARKDOWN
+        'parse_mode': ParseMode.MARKDOWN,
+        'quote': False
     }
 
 
@@ -122,7 +120,7 @@ def group_create(bot, update):
         update.effective_message.reply_text(f'You cannot have more that {config("GROUP_LIMIT", cast=int)} groups.')
         return ConversationHandler.END
 
-    update.effective_message.reply_text('Ok, send the name of the group. /cancel')
+    update.effective_message.reply_text('Ok, send the name of the group. /cancel', quote=False)
     return CREATE_GROUP
 
 
@@ -141,7 +139,6 @@ def group_create_complete(bot, update):
             user=update.effective_message.from_user.id,
             chat=update.effective_message.chat_id,
             name=group_name)
-        GroupUsers.create(group=group, alias=update.effective_user.name)
         update.effective_message.reply_text('Saved. You can see all of your /groups if you like.')
         return ConversationHandler.END
     except IntegrityError:  # Index fell down
@@ -193,6 +190,9 @@ def group_join(bot, update):
 @database.atomic()
 def group_leave(bot, update):
     group = Group.get_by_id(int(update.callback_query.data.split('.')[-1]))
+    if not GroupUsers.select().where((GroupUsers.group == group) & (GroupUsers.alias == update.callback_query.from_user.name)):
+        return update.callback_query.answer("You are not present in the group.")
+
     GroupUsers.delete().where(
         (GroupUsers.group == group) & (GroupUsers.alias == update.callback_query.from_user.name)
     ).execute()
@@ -215,15 +215,15 @@ def group_add_members_enter(bot, update, user_data):
         return ConversationHandler.END
 
     update.callback_query.answer()
-    update.effective_message.reply_text(
+    update.effective_message.edit_text(
         f'Ok, send usernames (like {update.effective_user.name}) one by one. '
-        f'When you will be ready, send /done for completing.')
+        f'When you will be ready, send /done for completing.',
+        reply_markup=InlineKeyboardMarkup([]))
     return GROUP_ADD_MEMBERS
 
 
-@client_wrapper
 @database.atomic()
-def group_add_members(bot, update, app, user_data):
+def group_add_members(bot, update, user_data):
 
     group = Group.get_by_id(user_data.get('effective_group'))
     try:
@@ -235,16 +235,8 @@ def group_add_members(bot, update, app, user_data):
             update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
 
         alias = alias if '@' in alias else f'@{alias}'
-        user = app.get_users(alias)  # checking, if username is occupied
 
-        if not update.effective_chat.id == update.effective_user.id:
-            full_chat = app.send(
-                functions.messages.GetFullChat(chat_id=app.resolve_peer(update.effective_chat.id).chat_id))
-            if not user.id in [getattr(item, 'id') for item in full_chat.users]:
-                update.effective_message.reply_text(f'User `{escape_markdown(alias)}` is not present in the chat.', parse_mode=ParseMode.MARKDOWN)
-                return GROUP_ADD_MEMBERS
-
-        # 2. Actual adding user to the group
+        # 2. Adding user to the group
         GroupUsers.create(group=group, alias=alias)
         update.effective_message.reply_text(f'Added `{escape_markdown(alias)}`', parse_mode=ParseMode.MARKDOWN)
         if len(group.members) >= config('GROUP_MEMBERS_LIMIT', cast=int):
@@ -256,11 +248,6 @@ def group_add_members(bot, update, app, user_data):
     except IntegrityError:
         update.effective_message.reply_text(
             f'You have already added `{escape_markdown(alias)}` to the group',
-            parse_mode=ParseMode.MARKDOWN)
-
-    except UsernameNotOccupied:
-        update.effective_message.reply_text(
-            f'Username `{escape_markdown(alias)}` is not occupied.',
             parse_mode=ParseMode.MARKDOWN)
 
     return GROUP_ADD_MEMBERS
@@ -297,7 +284,12 @@ def group_remove_enter(bot, update, user_data):
 @database.atomic()
 def group_remove_members(bot, update, user_data):
     member_id = update.callback_query.data.split('.')[-1]
-    GroupUsers.delete().where(GroupUsers.id == member_id).execute()
+    user = GroupUsers.get_by_id(member_id)
+    update.callback_query.message.reply_text(
+        f"{user.alias} has been removed from {group_bold_text(user.group.name)}",
+        parse_mode=ParseMode.MARKDOWN, quote=False)
+    user.delete_instance()
+
     keyboard = _construct_members_menu(Group.get_by_id(user_data.get('effective_group')))
     if len(keyboard) == 1:
         kwargs = _build_action_menu(Group.get_by_id(user_data.get('effective_group')), update)
