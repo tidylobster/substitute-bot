@@ -20,7 +20,7 @@ pipeline {
             steps {
                 sh 'ssh root@95.216.149.46 rm -rf /root/tests/substitute-bot/*'  // clean up directory
                 sh 'scp -r ./* root@95.216.149.46:/root/tests/substitute-bot/'  // copy all compiled files 
-                sh 'ssh root@95.216.149.46 cp test_account.session config.env substitute-bot/'  // copy session files
+                sh 'ssh root@95.216.149.46 cp /root/tests/test_account.session /root/tests/config.env /root/tests/substitute-bot/'  // copy session files
                 sh 'ssh root@95.216.149.46 make test -C /root/tests/substitute-bot/' // create new bot instance and run tests
             }
             post {
