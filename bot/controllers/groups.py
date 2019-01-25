@@ -244,7 +244,7 @@ def group_add_members(bot, update, user_data):
             update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
             user_data["tries"] -= 1
             if user_data["tries"] <= 0: 
-                update.effective_message.reply_text("Exiting adding mode")
+                update.effective_message.reply_text("Exiting adding mode", quote=False)
                 return ConversationHandler.END
             return GROUP_ADD_MEMBERS
 
@@ -281,6 +281,11 @@ def group_add_members_complete(bot, update, user_data):
 
 @database.atomic()
 def group_remove_enter(bot, update, user_data):
+    if update.callback_query.data.split('.')[-1] == 'exit':
+        kwargs = _build_group_menu(update.effective_chat.id)
+        update.effective_message.edit_text(**kwargs)
+        return ConversationHandler.END
+
     user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
     group = Group.get_by_id(user_data.get('effective_group'))
     if group.user != update.callback_query.from_user.id:
