@@ -391,7 +391,7 @@ def group_delete_complete(bot, update, user_data):
 
     if action == 'yes':
         group.delete_instance(recursive=True)
-        if update.effective_chat.id == update.effective_group.id:
+        if update.effective_chat.id == update.effective_user.id:
             update.callback_query.answer('Group have been deleted')
         else:
             update.callback_query.answer()
