@@ -3,6 +3,7 @@ import re
 from decouple import Config, RepositoryEnv
 
 from peewee import IntegrityError
+from telegram import ChatMember, Update, Bot
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 from telegram.ext import ConversationHandler
 from telegram.utils.helpers import escape_markdown
@@ -58,7 +59,7 @@ def _build_group_menu(chat_id):
 
 def _build_action_menu(group, update):
     keyboard = []
-    if group.user == update.effective_user.id:  # if creator
+    if group.user == update.effective_user.id or _has_admin_rights(update):  # if creator
         message = f'Choose an action for {group_bold_text(group.name)} group.'
         keyboard.extend([[InlineKeyboardButton('Add members', callback_data=f'group.add.{group.id}'),
                           InlineKeyboardButton('Remove members', callback_data=f'group.remove.{group.id}')]])
@@ -107,6 +108,12 @@ def _construct_members_menu(group):
     else:
         keyboard.append([InlineKeyboardButton('← Back', callback_data='group.remove.exit')])
     return keyboard
+
+
+def _has_admin_rights(update: Update):
+    bot = update.effective_message.bot
+    chat_member = bot.get_chat_member(chat_id=update.effective_chat.id, user_id=update.effective_user.id)
+    return chat_member.status in (ChatMember.ADMINISTRATOR, ChatMember.CREATOR)
 
 
 # /create command
@@ -206,10 +213,12 @@ def group_leave(bot, update):
 @database.atomic()
 def group_add_members_enter(bot, update, user_data):
     user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
+    user_data['tries'] = 3
     group = Group.get_by_id(user_data.get('effective_group'))
     if group.user != update.callback_query.from_user.id:
-        update.callback_query.answer('You are not allowed to add new members.')
-        return ConversationHandler.END
+        if not _has_admin_rights(update):
+            update.callback_query.answer('You are not allowed to add new members.')
+            return ConversationHandler.END
     if len(group.members) >= config('GROUP_MEMBERS_LIMIT', cast=int):
         update.callback_query.answer(f'You can only have up to {config("GROUP_MEMBERS_LIMIT", cast=int)} users in the group.')
         return ConversationHandler.END
@@ -233,6 +242,10 @@ def group_add_members(bot, update, user_data):
 
         if not validated:
             update.effective_message.reply_text(f'Sorry, invalid alias. {message}')
+            user_data["tries"] -= 1
+            if user_data["tries"] <= 0: 
+                update.effective_message.reply_text("Exiting adding mode")
+                return ConversationHandler.END
             return GROUP_ADD_MEMBERS
 
         alias = alias if '@' in alias else f'@{alias}'
@@ -271,8 +284,9 @@ def group_remove_enter(bot, update, user_data):
     user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
     group = Group.get_by_id(user_data.get('effective_group'))
     if group.user != update.callback_query.from_user.id:
-        update.callback_query.answer('You are not allowed to remove members.')
-        return ConversationHandler.END
+        if not _has_admin_rights(update):
+            update.callback_query.answer('You are not allowed to remove members.')
+            return ConversationHandler.END
     if not group.members:
         update.callback_query.answer("There aren't any members in the group.")
         return ConversationHandler.END
@@ -314,8 +328,9 @@ def group_rename_enter(bot, update, user_data):
     user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
     group = Group.get_by_id(user_data.get('effective_group'))
     if group.user != update.callback_query.from_user.id:
-        update.callback_query.answer('You are not allowed to rename the group.')
-        return ConversationHandler.END
+        if not _has_admin_rights(update):
+            update.callback_query.answer('You are not allowed to rename the group.')
+            return ConversationHandler.END
 
     update.callback_query.answer()
     update.effective_message.reply_text('Send the new name of the group.')
@@ -351,8 +366,9 @@ def group_delete_enter(bot, update, user_data):
     user_data['effective_group'] = int(update.callback_query.data.split('.')[-1])
     group = Group.get_by_id(user_data.get('effective_group'))
     if group.user != update.callback_query.from_user.id:
-        update.callback_query.answer('You are not allowed to delete the group.')
-        return ConversationHandler.END
+        if not _has_admin_rights(update):
+            update.callback_query.answer('You are not allowed to delete the group.')
+            return ConversationHandler.END
 
     update.effective_message.edit_text(
         text=f'Are you sure, you want to delete the group {group_bold_text(group.name)}?',

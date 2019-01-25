@@ -6,3 +6,4 @@
 *.env
 *.session
 *.pyc
+.idea/

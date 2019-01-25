@@ -5,3 +5,4 @@ transliterate==1.10.1
 tgintegration==0.2.4
 Pyrogram==0.7.4
 pytest==3.10.0
+PySocks==1.6.8

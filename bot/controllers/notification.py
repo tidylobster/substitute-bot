@@ -60,6 +60,8 @@ def inline_chosen(bot, update):
 def check_every_message(bot, update):
     if update.effective_message.chat_id == update.effective_message.from_user.id:
         return None  # Don't check anything, if this is self-conversation
+    if update.effective_message.forward_date: 
+        return None  # Don't mention anyone, if this is a forwarded message
 
     user_groups = Group.select().where(Group.chat == update.effective_chat.id)
     try:
