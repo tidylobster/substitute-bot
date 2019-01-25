@@ -390,12 +390,13 @@ def group_delete_complete(bot, update, user_data):
     action = update.callback_query.data.split('.')[-1]
 
     if action == 'yes':
+        group_name = group.name
         group.delete_instance(recursive=True)
         if update.effective_chat.id == update.effective_user.id:
             update.callback_query.answer('Group have been deleted')
         else:
             update.callback_query.answer()
-            update.effective_message.reply_text('Group have been deleted')
+            update.effective_message.reply_text(f'Group {group_name} have been deleted', quote=False)
         kwargs = _build_group_menu(update.effective_chat.id)
         update.effective_message.edit_text(**kwargs)
 
