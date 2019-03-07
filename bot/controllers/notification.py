@@ -75,6 +75,6 @@ def check_every_message(bot, update):
             mentioned.append(group.id)
             if group.members:
                 update.effective_message.reply_text(f"Guys {get_group_members_string(group)}, you have been mentioned.", parse_mode=ParseMode.MARKDOWN)
-            else:
-                update.effective_message.reply_text(f"A group {group_bold_text(group.name)} was mentioned, but there are no members in it.", parse_mode=ParseMode.MARKDOWN)
+            # else:
+            #     update.effective_message.reply_text(f"A group {group_bold_text(group.name)} was mentioned, but there are no members in it.", parse_mode=ParseMode.MARKDOWN)
 
